@@ -4,40 +4,52 @@ import tqdm
 import torch
 import random
 import inspect
-import torch.nn as nn
 import os.path as osp
+import torch.nn as nn
 from pathlib import Path
 from itertools import chain
 from torch.utils.data import random_split
-from torch_geometric.nn import EdgeConv, global_mean_pool, DataParallel
 from torch_geometric.data import Data, DataLoader, DataListLoader
+from torch_geometric.nn import EdgeConv, global_mean_pool, DataParallel
 
 import models.models as models
 import models.emd_models as emd_models
-from util.train_util import get_model, forward_loss
 from util.loss_util import LossFunction
 from datagen.graph_data_gae import GraphDataset
-from util.plot_util import loss_curves, plot_reco_difference, gen_in_out
+from util.train_util import get_model, forward_loss
+from util.plot_util import loss_curves, plot_reco_difference, gen_in_out, gen_emd_corr
 
 torch.manual_seed(0)
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 multi_gpu = torch.cuda.device_count()>1
 
 @torch.no_grad()
-def test(model, loader, total, batch_size, loss_ftn_obj):
+def test(model, loader, total, batch_size, loss_ftn_obj, gen_emd_corr=False):
     model.eval()
 
     sum_loss = 0.
     t = tqdm.tqdm(enumerate(loader),total=total/batch_size)
+    if gen_emd_corr:
+        in_parts = []
+        gen_parts = []
+        pred_emd = []
+
     for i,data in t:
 
-        batch_loss = forward_loss(model, data, loss_ftn_obj, device, multi_gpu)
+        batch_loss, batch_output = forward_loss(model, data, loss_ftn_obj, device, multi_gpu)
 
         batch_loss = batch_loss.item()
         sum_loss += batch_loss
         t.set_description('eval loss = %.5f' % (batch_loss))
         t.refresh() # to show immediately the update
 
+        if gen_emd_corr:
+            in_parts.append(data.x.detach().cpu().numpy())
+            gen_parts.append(batch_output.detach().cpu().numpy())
+            pred_emd.append(batch_loss)
+
+    if gen_emd_corr:
+        return sum_loss / (i+1), in_parts, gen_parts, pred_emd
     return sum_loss / (i+1)
 
 def train(model, optimizer, loader, total, batch_size, loss_ftn_obj):
@@ -48,7 +60,7 @@ def train(model, optimizer, loader, total, batch_size, loss_ftn_obj):
     for i,data in t:
         optimizer.zero_grad()
 
-        batch_loss = forward_loss(model, data, loss_ftn_obj, device, multi_gpu)
+        batch_loss, batch_output = forward_loss(model, data, loss_ftn_obj, device, multi_gpu)
         batch_loss.backward()
         optimizer.step()
 
@@ -135,7 +147,11 @@ def main(args):
     for epoch in range(start_epoch, n_epochs):
 
         loss = train(model, optimizer, train_loader, train_samples, args.batch_size, loss_ftn_obj)
-        valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
+        if epoch % 5 == 0 and args.loss == 'emd_loss':
+            valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
+            gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
+        else:
+            valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
 
         scheduler.step(valid_loss)
         train_losses.append(loss)
