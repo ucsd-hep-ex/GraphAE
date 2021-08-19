@@ -40,7 +40,7 @@ def test(model, loader, total, batch_size, loss_ftn_obj, gen_emd_corr=False):
 
         batch_loss = batch_loss.item()
         sum_loss += batch_loss
-        t.set_description('eval loss = %.5f' % (batch_loss))
+        t.set_description('eval loss = %.7f' % (batch_loss))
         t.refresh() # to show immediately the update
 
         if gen_emd_corr:
@@ -66,7 +66,7 @@ def train(model, optimizer, loader, total, batch_size, loss_ftn_obj):
 
         batch_loss = batch_loss.item()
         sum_loss += batch_loss
-        t.set_description('train loss = %.5f' % batch_loss)
+        t.set_description('train loss = %.7f' % batch_loss)
         t.refresh() # to show immediately the update
 
     return sum_loss / (i+1)
@@ -127,7 +127,8 @@ def main(args):
     start_epoch = 0
     modpath = osp.join(save_dir, model_fname+'.best.pth')
     if osp.isfile(modpath):
-        model.load_state_dict(torch.load(modpath))
+        model.load_state_dict(torch.load(modpath, map_location=device))
+        model.to(device)
         best_valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
         print('Loaded model')
         print(f'Saved model valid loss: {best_valid_loss}')
@@ -136,9 +137,10 @@ def main(args):
     else:
         print('Creating new model')
         best_valid_loss = 9999999
+        model.to(device)
     if multi_gpu:
         model = DataParallel(model)
-    model.to(device)
+        model.to(device)
 
     # Training loop
     n_epochs = 200
