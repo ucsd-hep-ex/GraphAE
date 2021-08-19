@@ -28,7 +28,6 @@ def forward_loss(model, data, loss_ftn_obj, device, multi_gpu):
         batch_output = model(data)
         if multi_gpu:
             data = Batch.from_data_list(data).to(device)
-        import pdb; pdb.set_trace()
         y = data.x
         batch = data.batch
         batch_loss = loss_ftn_obj.loss_ftn(batch_output, y, batch)
