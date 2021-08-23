@@ -7,7 +7,7 @@ from pyjet import cluster, DTYPE_PTEPM
 
 ak.behavior.update(vector.behavior)
 
-def jet_particles(df, R=1.0, u=False, part_type='xyz'):
+def jet_particles(df, R=1.0, u=False, features='xyz'):
     all_events = df.values
     rows = all_events.shape[0]
     cols = all_events.shape[1]
@@ -29,7 +29,7 @@ def jet_particles(df, R=1.0, u=False, part_type='xyz'):
             particles = np.zeros((n_particles, 3))
             # store all the particles of this jet
             for p, part in enumerate(jet):
-                if part_type == 'xyz':
+                if features == 'xyz':
                     particles[p,:] = np.array([part.px,
                                                part.py,
                                                part.pz])

@@ -5,18 +5,19 @@ example:
 python bump_hunt.py --model-name EdgeNet_emd_1k --model EdgeNet --loss emd_loss --box-num 1
 """
 import sys
-import glob
 import tqdm
 import math
 import torch
 import random
-import awkward
+import inspect
+import awkward0
 import numpy as np
 import pandas as pd
 import mplhep as hep
 import os.path as osp
 import pyBumpHunter as BH
 import matplotlib.pyplot as plt
+from glob import glob
 from pathlib import Path
 from sklearn import metrics
 from torch.nn import MSELoss
@@ -177,7 +178,7 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     bh.PlotBump(data=outlier_mass, bkg=nonoutlier_mass,filename=save_name+'.pdf')
     bh.PlotBHstat(show_Pval=True,filename=save_name+'_stat.pdf')
 
-def process(data_loader, num_events, model_fname, model, loss_ftn_obj, latent_dim, no_E):
+def process(data_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features):
     """
     Use the specified model to determine the reconstruction loss of each sample.
     Also calculate the invariant mass of the jets.
@@ -185,7 +186,7 @@ def process(data_loader, num_events, model_fname, model, loss_ftn_obj, latent_di
     Args:
         data_loader (torch.data.DataLoader): pytorch dataloader for loading in black boxes
         num_events (int): how many events we're processing
-        model_fname (str): name of saved model
+        model_path (str): path to saved model
         model (str): name of model class
         loss_ftn_obj (LossFunction): see loss_util.py
         latent_dim (int): latent dimension of the model
@@ -200,9 +201,9 @@ def process(data_loader, num_events, model_fname, model, loss_ftn_obj, latent_di
     if model == 'MetaLayerGAE':
         model = models.GNNAutoEncoder()
     else:
-        input_dim = 3 if (args.no_E or args.loss=='emd_loss') else 4
+        input_dim = 3
         model = getattr(models, model)(input_dim=input_dim, hidden_dim=latent_dim)
-    modpath = osp.join('/anomalyvol/results/',model_fname,model_fname+'.best.pth')
+    modpath = glob(osp.join(model_path,'*.best.pth'))[0]
     if torch.cuda.is_available():
         model.load_state_dict(torch.load(modpath, map_location=torch.device('cuda')))
     else:
@@ -210,7 +211,6 @@ def process(data_loader, num_events, model_fname, model, loss_ftn_obj, latent_di
     model.eval()
 
     # Store the return values
-    max_feat = 4
     jets_proc_data = []
     input_fts = []
     reco_fts = []
@@ -221,18 +221,22 @@ def process(data_loader, num_events, model_fname, model, loss_ftn_obj, latent_di
     with torch.no_grad():
         for k, data in tqdm.tqdm(enumerate(data_loader),total=len(data_loader)):
             data = data[0]  # remove extra bracket from DataListLoader since batch size is 1
+
             # mask 3rd jet in 3-jet events
             event_list = torch.stack([d.u[0][0] for d in data]).cpu().numpy()
             unique, inverse, counts = np.unique(event_list, return_inverse=True, return_counts=True)
-            awk_array = awkward.JaggedArray.fromparents(inverse, event_list)
+            awk_array = awkward0.JaggedArray.fromparents(inverse, event_list)
             mask = ((awk_array.localindex < 2).flatten()) * (counts[inverse]>1)
             data = [d for d,m in zip(data, mask) if m]
             # get leading 2 jets
             data_batch = Batch.from_data_list(data)
-            if (loss_ftn_obj.name == "emd_loss"):
-                data_batch.x = data_batch.x[:,4:-1]
-            elif no_E:
-                data_batch.x = data_batch.x[:,:-1]
+
+            # select appropriate features based on what model was trained on
+            if features == 'xyz':
+                data_batch.x = data_batch.x[:,:3]
+            else:
+                data_batch.x = data_batch.x[:,4:7]
+
             jets_x = data_batch.x
             batch = data_batch.batch
             jets_u = data_batch.u
@@ -373,18 +377,16 @@ def main(args):
         exit("--box_num invalid; must be 0, 1, 2, or 4")
 
     loss_ftn_obj = LossFunction(args.loss)
-    model_fname = args.model_name
+    model_path = args.model_path
+    model_fname = osp.basename(glob(osp.join(model_path,'*.best.pth'))[0]).split('.')[0]
     model = args.model
     num_events = args.num_events
     latent_dim = args.latent_dim
     output_dir = args.output_dir
     overwrite = args.overwrite
     box_num = args.box_num
-    no_E = args.no_E
-    cuts = np.arange(0.2, 1.0, 0.1)
-
-    Path(output_dir).mkdir(exist_ok=True) # make a folder for the graphs of this model   
-    Path(osp.join(output_dir,model_fname)).mkdir(exist_ok=True) # make a folder for the graphs of this model
+    features = args.features
+    cuts = np.arange(0.5, 1.0, 0.1)
 
     def get_df(proc_jets):
         d = {'loss1': proc_jets[:,0],
@@ -400,42 +402,41 @@ def main(args):
     bb_name = ["bb0", "bb1", "bb2", "bb3", "rnd"][box_num]
     print("Plotting %s"%bb_name)
 
-    save_dir = osp.join(model_fname, bb_name)
-    save_path = osp.join(output_dir,save_dir)
-    Path(save_path).mkdir(exist_ok=True) # make a subfolder
+    save_path = osp.join(output_dir,model_fname,'bump_hunt',bb_name)
+    Path(save_path).mkdir(parents=True,exist_ok=True) # make a subfolder
 
-    if not osp.isfile(osp.join(output_dir,model_fname,bb_name,'df.pkl')) or overwrite:
+    if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
+        # gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
         gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num)
         bb_loader = DataListLoader(gdata)
-        proc_jets, input_fts, reco_fts = process(bb_loader, num_events, model_fname, model, loss_ftn_obj, latent_dim, no_E)
+        proc_jets, input_fts, reco_fts = process(bb_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features)
         df = get_df(proc_jets)
-        df.to_pickle(osp.join(output_dir,model_fname,bb_name,'df.pkl'))
-        torch.save(input_fts, osp.join(output_dir,model_fname,bb_name,'input_fts.pt'))
-        torch.save(reco_fts, osp.join(output_dir,model_fname,bb_name,'reco_fts.pt'))
+        df.to_pickle(osp.join(save_path,'df.pkl'))
+        torch.save(input_fts, osp.join(save_path,'input_fts.pt'))
+        torch.save(reco_fts, osp.join(save_path,'reco_fts.pt'))
     else:
         print("Using preprocessed dictionary")
-        df = pd.read_pickle(osp.join(output_dir,model_fname,bb_name,'df.pkl'))
-        input_fts = torch.load(osp.join(output_dir,model_fname,bb_name,'input_fts.pt'))
-        reco_fts = torch.load(osp.join(output_dir,model_fname,bb_name,'reco_fts.pt'))
+        df = pd.read_pickle(osp.join(save_path,'df.pkl'))
+        input_fts = torch.load(osp.join(save_path,'input_fts.pt'))
+        reco_fts = torch.load(osp.join(save_path,'reco_fts.pt'))
     plot_reco_difference(input_fts, reco_fts, model_fname, save_path)
     bump_hunt(df, cuts, model_fname, model, bb_name, save_path)
 
 if __name__ == "__main__":
-    saved_models = [osp.basename(x) for x in glob.glob('/anomalyvol/experiments/*')]
 
     # process arguments
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", type=str, help="Saved model name without file extension", required=True, choices=saved_models)
+    parser.add_argument("--model-path", type=str, help="Directory to saved model discluding the model file", required=True)
     parser.add_argument("--output-dir", type=str, help="Output directory for files.", required=False, default='/anomalyvol/experiments/')
     parser.add_argument("--model", choices=[m[0] for m in inspect.getmembers(models, inspect.isclass) if m[1].__module__ == 'models.models'], help="model selection", required=True)
-    parser.add_argument("--no-E", action='store_true', help="If model was trained without E feature", default=False, required=False)
     parser.add_argument("--overwrite", action='store_true', help="Toggle overwrite of pkl. Default False.", default=False, required=False)
     parser.add_argument("--num-events", type=int, help="How many events to process (multiple of 100). Default 1mil", default=1000000, required=False)
     parser.add_argument("--latent-dim", type=int, help="How many units for the latent space (def=2)", default=2, required=False)
     parser.add_argument("--loss", choices=["chamfer_loss","emd_loss","vae_loss","mse"], help="loss function", required=True)
     parser.add_argument("--box-num", type=int, help="0=QCD-background; 1=bb1; 2=bb2; 4=rnd", required=True)
+    parser.add_argument("--features", choices=['xyz','relptetaphi'], help="Generate (px,py,pz) or relative (pt,eta,phi)", required=True)
     args = parser.parse_args()
 
     main(args)
