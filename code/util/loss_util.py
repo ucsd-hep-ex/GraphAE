@@ -20,9 +20,6 @@ def load_emd_model(emd_model_name, device):
     return emd_model
 
 def preprocess_emdnn_input(x, y, batch):
-    # center by pt centroid while accounting for torch geo batching
-    _, unique_batches = torch.unique_consecutive(batch, return_counts=True)
- 
     device = x.device.type
     x = torch.cat((x, torch.ones((len(x),1), device=device)), 1)
     y = torch.cat((y, torch.ones((len(y),1), device=device) * -1), 1)
@@ -88,13 +85,15 @@ class LossFunction:
 
         return BCE + KLD
 
-    def emd_loss(self, x, y, batch):
+    def emd_loss(self, x, y, batch, mean=True):
         self.emd_model.eval()
         # px py pz -> pt eta phi
         data = preprocess_emdnn_input(x, y, batch)
         out = self.emd_model(data)
         emd = out[0]
-        return emd.mean()
+        if mean:
+            return emd.mean()
+        return emd
 
     def deepemd_loss(self, x, y, batch, l2_strength=1e-4):
         _, counts = torch.unique_consecutive(batch, return_counts=True)

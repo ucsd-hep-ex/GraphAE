@@ -179,3 +179,34 @@ class EdgeNetDeeper(nn.Module):
         x = self.decoder_1(x,data.edge_index)
         x = self.decoder_2(x,data.edge_index)
         return x
+
+# GNN AE using EdgeConv (mean aggregation graph operation). Basic GAE model.
+class EdgeNet2(nn.Module):
+    def __init__(self, input_dim=4, big_dim=32, hidden_dim=2, aggr='mean'):
+        super(EdgeNet2, self).__init__()
+        encoder_nn = nn.Sequential(nn.Linear(2*(input_dim), big_dim),
+                               nn.ReLU(),
+                               nn.Linear(big_dim, big_dim),
+                               nn.ReLU(),
+                               nn.Linear(big_dim, hidden_dim),
+                               nn.ReLU(),
+        )
+        
+        decoder_nn = nn.Sequential(nn.Linear(2*(hidden_dim), big_dim),
+                               nn.ReLU(),
+                               nn.Linear(big_dim, big_dim),
+                               nn.ReLU(),
+                               nn.Linear(big_dim, input_dim)
+        )
+        
+        self.batchnorm = nn.BatchNorm1d(input_dim)
+
+        self.encoder = EdgeConv(nn=encoder_nn,aggr=aggr)
+        self.decoder = EdgeConv(nn=decoder_nn,aggr=aggr)
+
+    def forward(self, data):
+        x = self.batchnorm(data.x)
+        x = self.encoder(x,data.edge_index)
+        x = self.decoder(x,data.edge_index)
+        F.relu(x[:,0], inplace=True)
+        return x
