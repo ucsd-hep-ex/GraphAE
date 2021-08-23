@@ -386,10 +386,7 @@ def main(args):
     overwrite = args.overwrite
     box_num = args.box_num
     features = args.features
-    cuts = np.arange(0.2, 1.0, 0.1)
-
-    Path(output_dir).mkdir(exist_ok=True) # make a folder for the graphs of this model   
-    Path(osp.join(output_dir,model_fname)).mkdir(exist_ok=True) # make a folder for the graphs of this model
+    cuts = np.arange(0.5, 1.0, 0.1)
 
     def get_df(proc_jets):
         d = {'loss1': proc_jets[:,0],
@@ -405,25 +402,24 @@ def main(args):
     bb_name = ["bb0", "bb1", "bb2", "bb3", "rnd"][box_num]
     print("Plotting %s"%bb_name)
 
-    save_dir = osp.join(model_fname, bb_name)
-    save_path = osp.join(output_dir,save_dir)
-    Path(save_path).mkdir(exist_ok=True) # make a subfolder
+    save_path = osp.join(output_dir,model_fname,'bump_hunt',bb_name)
+    Path(save_path).mkdir(parents=True,exist_ok=True) # make a subfolder
 
-    if not osp.isfile(osp.join(output_dir,model_fname,bb_name,'df.pkl')) or overwrite:
+    if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
-        gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
-        # gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num)
+        # gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
+        gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num)
         bb_loader = DataListLoader(gdata)
         proc_jets, input_fts, reco_fts = process(bb_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features)
         df = get_df(proc_jets)
-        df.to_pickle(osp.join(output_dir,model_fname,bb_name,'df.pkl'))
-        torch.save(input_fts, osp.join(output_dir,model_fname,bb_name,'input_fts.pt'))
-        torch.save(reco_fts, osp.join(output_dir,model_fname,bb_name,'reco_fts.pt'))
+        df.to_pickle(osp.join(save_path,'df.pkl'))
+        torch.save(input_fts, osp.join(save_path,'input_fts.pt'))
+        torch.save(reco_fts, osp.join(save_path,'reco_fts.pt'))
     else:
         print("Using preprocessed dictionary")
-        df = pd.read_pickle(osp.join(output_dir,model_fname,bb_name,'df.pkl'))
-        input_fts = torch.load(osp.join(output_dir,model_fname,bb_name,'input_fts.pt'))
-        reco_fts = torch.load(osp.join(output_dir,model_fname,bb_name,'reco_fts.pt'))
+        df = pd.read_pickle(osp.join(save_path,'df.pkl'))
+        input_fts = torch.load(osp.join(save_path,'input_fts.pt'))
+        reco_fts = torch.load(osp.join(save_path,'reco_fts.pt'))
     plot_reco_difference(input_fts, reco_fts, model_fname, save_path)
     bump_hunt(df, cuts, model_fname, model, bb_name, save_path)
 
