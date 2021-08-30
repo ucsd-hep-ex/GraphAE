@@ -62,7 +62,8 @@ class LossFunction:
         self.name = lossname
         self.loss_ftn = loss
         self.device = device
-        self.iqr_prop = iqr_prop.to(device)
+        if iqr_prop != None:
+            self.iqr_prop = iqr_prop.to(device)
 
     def chamfer_loss(self, x, y, batch):
         x = to_dense_batch(x, batch)[0]

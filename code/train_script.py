@@ -17,6 +17,7 @@ import models.emd_models as emd_models
 from util.loss_util import LossFunction
 from datagen.graph_data_gae import GraphDataset
 from util.train_util import get_model, forward_loss
+from util.preprocessing import get_iqr_proportions, standardize
 from util.plot_util import loss_curves, plot_reco_difference, gen_in_out, gen_emd_corr
 
 torch.manual_seed(0)
@@ -110,17 +111,13 @@ def main(args):
         valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
         test_loader  = DataLoader(test_dataset,  batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
 
-    # calcualte iqr proportions of training dataset for weighted mse
+    # preprocessing options
     iqr_prop = None
     if 'iqr' in args.loss:
-        all_x = []
-        for d in train_dataset:
-            all_x.append(d.x)
-        all_x = torch.cat(all_x)
-        qs = torch.quantile(all_x, torch.tensor([0.25,0.75]), dim=0)
-        iqr = qs[1] - qs[0]
-        max_iqr = torch.max(iqr)
-        iqr_prop = iqr / max_iqr
+        iqr_prop = get_iqr_proportions(train_dataset)
+    if args.standardize:
+        import pdb; pdb.set_trace()
+        scaler = standardize(train_dataset, valid_dataset, test_dataset)
 
     loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device, iqr_prop=iqr_prop)
 
@@ -204,10 +201,16 @@ def main(args):
     model.to(device)
 
     input_fts, reco_fts = gen_in_out(model, valid_loader, device)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'))
+    if args.standardize and args.plot_scale != 'standardized':
+        input_fts = scaler.inverse_transform(input_fts)
+        reco_fts = scaler.inverse_transform(reco_fts)
+    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'), feature=args.plot_scale)
 
     input_fts, reco_fts = gen_in_out(model, test_loader, device)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'))
+    if args.standardize and args.plot_scale != 'standardized':
+        input_fts = scaler.inverse_transform(input_fts)
+        reco_fts = scaler.inverse_transform(reco_fts)
+    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'), feature=args.plot_scale)
     print('Completed')
 
 if __name__ == '__main__':
@@ -233,6 +236,9 @@ if __name__ == '__main__':
                         default=None, required=False)
     parser.add_argument('--num-workers', type=int, help='num_workers param for dataloader', 
                         default=0, required=False)
+    parser.add_argument("--standardize", action="store_true", help="normalize dataset", required=False)
+    parser.add_argument("--plot-scale", choices=['cartesian','hadronic','standardized'],
+                        help='classes for x-axis scaling for plotting reconstructions', default='cartesian', required=False)
     args = parser.parse_args()
 
     main(args)

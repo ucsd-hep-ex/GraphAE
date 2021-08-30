@@ -24,14 +24,14 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='h
     Plot the difference between the autoencoder's reconstruction and the original input
 
     Args:
-        input_fts (torch.tensor): the original features of the particles
-        reco_fts (torch.tensor): the reconstructed features
+        input_fts (numpy array): the original features of the particles
+        reco_fts (numpy array): the reconstructed features
         model_fname (str): name of saved model
     """
     Path(save_path).mkdir(parents=True, exist_ok=True)
     label = ['$p_x~[GeV]$', '$p_y~[GeV]$', '$p_z~[GeV]$']
     feat = ['px', 'py', 'pz']
-    if feature == 'hadronic':
+    if feature == 'hadronic' or 'standardized':
         label = ['$p_T$', '$eta$', '$phi$']
         feat = ['pt', 'eta', 'phi']
 
@@ -43,13 +43,15 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='h
             bins = np.linspace(-20, 20, 101)
             if i == 3:  # different bin size for E momentum
                 bins = np.linspace(-5, 35, 101)
-        else:
+        elif feature == 'hadronic':
             bins = np.linspace(-2, 2, 101)
             if i == 0:  # different bin size for pt rel
                 bins = np.linspace(-0.1, 0.1, 101)
+        else:
+            bins = np.linspace(-1, 1, 101)
         plt.ticklabel_format(useMathText=True)
-        plt.hist(input_fts[:,i].numpy(), bins=bins, alpha=0.5, label='Input', histtype='step', lw=5)
-        plt.hist(reco_fts[:,i].numpy(), bins=bins, alpha=0.5, label='Output', histtype='step', lw=5)
+        plt.hist(input_fts[:,i], bins=bins, alpha=0.5, label='Input', histtype='step', lw=5)
+        plt.hist(reco_fts[:,i], bins=bins, alpha=0.5, label='Output', histtype='step', lw=5)
         plt.legend(title='QCD dataset', fontsize='x-large')
         plt.xlabel(label[i], fontsize='x-large')
         plt.ylabel('Particles', fontsize='x-large')
@@ -59,11 +61,11 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='h
 
 @torch.no_grad()
 def gen_in_out(model, loader, device):
+    model.eval()
     input_fts = []
     reco_fts = []
 
     for t in loader:
-        model.eval()
         if isinstance(t, list):
             for d in t:
                 input_fts.append(d.x)
@@ -76,8 +78,8 @@ def gen_in_out(model, loader, device):
             reco_out = reco_out[0]
         reco_fts.append(reco_out.cpu().detach())
 
-    input_fts = torch.cat(input_fts)
-    reco_fts = torch.cat(reco_fts)
+    input_fts = torch.cat(input_fts).numpy()
+    reco_fts = torch.cat(reco_fts).numpy()
     return input_fts, reco_fts
 
 def loss_curves(epochs, early_stop_epoch, train_loss, valid_loss, save_path):
