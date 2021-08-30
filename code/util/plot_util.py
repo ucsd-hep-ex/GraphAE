@@ -19,7 +19,7 @@ def loss_distr(losses, save_name):
     plt.savefig(osp.join(save_name+'.pdf'))
     plt.close()
 
-def plot_reco_difference(input_fts, reco_fts, model_fname, save_path):
+def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='hadronic'):
     """
     Plot the difference between the autoencoder's reconstruction and the original input
 
@@ -31,14 +31,22 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path):
     Path(save_path).mkdir(parents=True, exist_ok=True)
     label = ['$p_x~[GeV]$', '$p_y~[GeV]$', '$p_z~[GeV]$']
     feat = ['px', 'py', 'pz']
+    if feature == 'hadronic':
+        label = ['$p_T$', '$eta$', '$phi$']
+        feat = ['pt', 'eta', 'phi']
 
     # make a separate plot for each feature
     for i in range(input_fts.shape[1]):
         plt.style.use(hep.style.CMS)
         plt.figure(figsize=(10,8))
-        bins = np.linspace(-20, 20, 101)
-        if i == 3:  # different bin size for E momentum
-            bins = np.linspace(-5, 35, 101)
+        if feature == 'cartesian':
+            bins = np.linspace(-20, 20, 101)
+            if i == 3:  # different bin size for E momentum
+                bins = np.linspace(-5, 35, 101)
+        else:
+            bins = np.linspace(-2, 2, 101)
+            if i == 0:  # different bin size for pt rel
+                bins = np.linspace(-0.1, 0.1, 101)
         plt.ticklabel_format(useMathText=True)
         plt.hist(input_fts[:,i].numpy(), bins=bins, alpha=0.5, label='Input', histtype='step', lw=5)
         plt.hist(reco_fts[:,i].numpy(), bins=bins, alpha=0.5, label='Output', histtype='step', lw=5)

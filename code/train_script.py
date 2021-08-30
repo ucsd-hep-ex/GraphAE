@@ -110,7 +110,19 @@ def main(args):
         valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
         test_loader  = DataLoader(test_dataset,  batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
 
-    loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device)
+    # calcualte iqr proportions of training dataset for weighted mse
+    iqr_prop = None
+    if 'iqr' in args.loss:
+        all_x = []
+        for d in train_dataset:
+            all_x.append(d.x)
+        all_x = torch.cat(all_x)
+        qs = torch.quantile(all_x, torch.tensor([0.25,0.75]), dim=0)
+        iqr = qs[1] - qs[0]
+        max_iqr = torch.max(iqr)
+        iqr_prop = iqr / max_iqr
+
+    loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device, iqr_prop=iqr_prop)
 
     # model
     input_dim = 3

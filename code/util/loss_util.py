@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import torch_scatter
 import os.path as osp
+import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.utils import to_dense_batch
 
@@ -49,7 +50,7 @@ def pairwise_distance(x, y, device=None):
     return dist
 
 class LossFunction:
-    def __init__(self, lossname, emd_model_name='EmdNNSpl', device=torch.device('cuda:0')):
+    def __init__(self, lossname, emd_model_name='EmdNNSpl', iqr_prop=None, device=torch.device('cuda:0')):
         if lossname == 'mse':
             loss = torch.nn.MSELoss(reduction='mean')
         else:
@@ -61,6 +62,7 @@ class LossFunction:
         self.name = lossname
         self.loss_ftn = loss
         self.device = device
+        self.iqr_prop = iqr_prop.to(device)
 
     def chamfer_loss(self, x, y, batch):
         x = to_dense_batch(x, batch)[0]
@@ -108,8 +110,13 @@ class LossFunction:
         emd = deepemd(x, y, device=self.device, l2_strength=l2_strength)
         return emd
 
+    def iqr_mse(self, x, y):
+        weighted_mse = F.mse_loss(x, y, reduction='none') * self.iqr_prop
+        return torch.mean(weighted_mse)
+
     def mse(self):
         pass
 
     def emd_in_forward(self):
         pass
+
