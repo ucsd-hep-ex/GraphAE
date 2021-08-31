@@ -51,14 +51,11 @@ def pairwise_distance(x, y, device=None):
 
 class LossFunction:
     def __init__(self, lossname, emd_model_name='EmdNNSpl', iqr_prop=None, device=torch.device('cuda:0')):
-        if lossname == 'mse':
-            loss = torch.nn.MSELoss(reduction='mean')
-        else:
-            loss = getattr(self, lossname)
-            if lossname == 'emd_loss':
-                # if using DataParallel it's merged into the network's forward pass to distribute gpu memory
-                self.emd_model = load_emd_model(emd_model_name, device)
-                # self.emd_model = emd_model.requires_grad_(False)
+        loss = getattr(self, lossname)
+        if lossname == 'emd_loss':
+            # if using DataParallel it's merged into the network's forward pass to distribute gpu memory
+            self.emd_model = load_emd_model(emd_model_name, device)
+            # self.emd_model = emd_model.requires_grad_(False)
         self.name = lossname
         self.loss_ftn = loss
         self.device = device
@@ -115,8 +112,14 @@ class LossFunction:
         weighted_mse = F.mse_loss(x, y, reduction='none') * self.iqr_prop
         return torch.mean(weighted_mse)
 
-    def mse(self):
+    def mse_conversion(self, x, y):
+        """
+        transform pt eta phi rel to px py pz before taking mse
+        """
         pass
+
+    def mse(self, x, y):
+        return F.mse_loss(x, y, reduction='mean')
 
     def emd_in_forward(self):
         pass

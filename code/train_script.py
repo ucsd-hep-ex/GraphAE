@@ -116,7 +116,6 @@ def main(args):
     if 'iqr' in args.loss:
         iqr_prop = get_iqr_proportions(train_dataset)
     if args.standardize:
-        import pdb; pdb.set_trace()
         scaler = standardize(train_dataset, valid_dataset, test_dataset)
 
     loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device, iqr_prop=iqr_prop)
@@ -199,6 +198,13 @@ def main(args):
     if multi_gpu:
         model = DataParallel(model)
     model.to(device)
+
+    input_fts, reco_fts = gen_in_out(model, train_loader, device)
+    import pdb; pdb.set_trace()
+    if args.standardize and args.plot_scale != 'standardized':
+        input_fts = scaler.inverse_transform(input_fts)
+        reco_fts = scaler.inverse_transform(reco_fts)
+    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'train'), feature=args.plot_scale)
 
     input_fts, reco_fts = gen_in_out(model, valid_loader, device)
     if args.standardize and args.plot_scale != 'standardized':
