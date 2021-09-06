@@ -18,7 +18,7 @@ from util.loss_util import LossFunction
 from datagen.graph_data_gae import GraphDataset
 from util.train_util import get_model, forward_loss
 from util.preprocessing import get_iqr_proportions, standardize
-from util.plot_util import loss_curves, plot_reco_difference, gen_in_out, gen_emd_corr
+from util.plot_util import loss_curves, gen_emd_corr, plot_reco_for_loader
 
 torch.manual_seed(0)
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -157,11 +157,11 @@ def main(args):
     for epoch in range(start_epoch, n_epochs):
 
         loss = train(model, optimizer, train_loader, train_samples, args.batch_size, loss_ftn_obj)
-        if epoch % 5 == 0 and args.loss == 'emd_loss':
-            valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
-            gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
-        else:
-            valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
+        # if epoch % 5 == 0 and args.loss == 'emd_loss':
+        #     valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
+        #     gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
+        # else:
+        valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
 
         scheduler.step(valid_loss)
         train_losses.append(loss)
@@ -199,24 +199,10 @@ def main(args):
         model = DataParallel(model)
     model.to(device)
 
-    input_fts, reco_fts = gen_in_out(model, train_loader, device)
-    import pdb; pdb.set_trace()
-    if args.standardize and args.plot_scale != 'standardized':
-        input_fts = scaler.inverse_transform(input_fts)
-        reco_fts = scaler.inverse_transform(reco_fts)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'train'), feature=args.plot_scale)
-
-    input_fts, reco_fts = gen_in_out(model, valid_loader, device)
-    if args.standardize and args.plot_scale != 'standardized':
-        input_fts = scaler.inverse_transform(input_fts)
-        reco_fts = scaler.inverse_transform(reco_fts)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'), feature=args.plot_scale)
-
-    input_fts, reco_fts = gen_in_out(model, test_loader, device)
-    if args.standardize and args.plot_scale != 'standardized':
-        input_fts = scaler.inverse_transform(input_fts)
-        reco_fts = scaler.inverse_transform(reco_fts)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'), feature=args.plot_scale)
+    inverse_standardization = args.standardize and args.plot_scale != 'standardized'
+    plot_reco_for_loader(model, train_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'train'), args.plot_scale)
+    plot_reco_for_loader(model, valid_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'), args.plot_scale)
+    plot_reco_for_loader(model, test_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'), args.plot_scale)
     print('Completed')
 
 if __name__ == '__main__':

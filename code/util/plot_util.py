@@ -28,6 +28,11 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='h
         reco_fts (numpy array): the reconstructed features
         model_fname (str): name of saved model
     """
+    if isinstance(input_fts, torch.Tensor):
+        input_fts = input_fts.numpy()
+    if isinstance(reco_fts, torch.Tensor):
+        reco_fts = reco_fts.numpy()
+
     Path(save_path).mkdir(parents=True, exist_ok=True)
     label = ['$p_x~[GeV]$', '$p_y~[GeV]$', '$p_z~[GeV]$']
     feat = ['px', 'py', 'pz']
@@ -46,7 +51,7 @@ def plot_reco_difference(input_fts, reco_fts, model_fname, save_path, feature='h
         elif feature == 'hadronic':
             bins = np.linspace(-2, 2, 101)
             if i == 0:  # different bin size for pt rel
-                bins = np.linspace(-0.1, 0.1, 101)
+                bins = np.linspace(-0.05, 0.1, 101)
         else:
             bins = np.linspace(-1, 1, 101)
         plt.ticklabel_format(useMathText=True)
@@ -78,9 +83,17 @@ def gen_in_out(model, loader, device):
             reco_out = reco_out[0]
         reco_fts.append(reco_out.cpu().detach())
 
-    input_fts = torch.cat(input_fts).numpy()
-    reco_fts = torch.cat(reco_fts).numpy()
+    input_fts = torch.cat(input_fts)
+    reco_fts = torch.cat(reco_fts)
     return input_fts, reco_fts
+
+def plot_reco_for_loader(model, loader, device, scaler, inverse_scale, model_fname, save_dir, feature_format):
+    input_fts, reco_fts = gen_in_out(model, loader, device)
+    if inverse_scale:
+        input_fts = scaler.inverse_transform(input_fts)
+        reco_fts = scaler.inverse_transform(reco_fts)
+    plot_reco_difference(input_fts, reco_fts, model_fname, save_dir, feature_format)
+
 
 def loss_curves(epochs, early_stop_epoch, train_loss, valid_loss, save_path):
     '''

@@ -1,5 +1,5 @@
 import torch
-from sklearn.preprocessing import StandardScaler
+from util.scaler import Standardizer
 
 def get_iqr_proportions(dataset):
     """
@@ -25,11 +25,11 @@ def standardize(train_dataset, valid_dataset, test_dataset):
 
     :return scaler: sklearn StandardScaler
     """
-    train_x = torch.cat([d.x for d in train_dataset]).numpy()
+    train_x = torch.cat([d.x for d in train_dataset])
 
-    scaler = StandardScaler()
+    scaler = Standardizer()
     scaler.fit(train_x)
     for dataset in (train_dataset, valid_dataset, test_dataset):
         for d in dataset:
-            d.x[:,:] = torch.from_numpy(scaler.transform(d.x.numpy()))
+            d.x[:,:] = scaler.transform(d.x)
     return scaler
