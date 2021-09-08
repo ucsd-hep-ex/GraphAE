@@ -1,17 +1,19 @@
 import torch
 import random
 import numpy as np
-from tqdm import tqdm
+import energyflow as ef
 from tqdm import tqdm
 from itertools import chain
 from sklearn.preprocessing import StandardScaler
 from torch_geometric.data import Data, DataLoader
 
 import models.models as models
+import models.emd_models as emd_models
 from util.scaler import Standardizer
 from datagen.graph_data_gae import GraphDataset
 from util.train_util import get_model, forward_loss
 from util.plot_util import *
+from util.loss_util import LossFunction
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -100,6 +102,45 @@ def test_reco_relative_diff():
     save_name = 'reco_rel_difference'
 
     reco_relative_diff(jet_in, jet_out, save_dir, save_name)
+
+def test_true_emd_calc():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gae-mod-path', type=str, help='gae model save file', required=True)
+    parser.add_argument('--emd-mod-path', type=str, help='emd model save file', required=True)
+    args = parser.parse_args()
+
+    gdata = GraphDataset(root='/anomalyvol/data/bb_train_sets/test_rel/', bb=0)
+    dataset = [data for data in chain.from_iterable(gdata)]
+
+    random.Random(0).shuffle(dataset)
+    small_sample = dataset[:int(0.10 * len(dataset))]
+    loader = DataLoader(small_sample, batch_size=256)
+
+    data_x = torch.cat([d.x for d in small_sample])
+    scaler = Standardizer()
+    scaler.fit(data_x)
+
+    model = get_model('EdgeNet', input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
+    model.load_state_dict(torch.load(args.gae_mod_path, map_location=device))
+    model.to(device)
+    model.eval()
+
+    lf = LossFunction('emd_loss')
+
+    pred_emd = []
+    true_emd = []
+    for batch in tqdm(loader):
+        batch.x[:,:] = scaler.transform(batch.x)
+        batch.to(device)
+        out = model(batch)
+        out = scaler.inverse_transform(out.detach().cpu())
+        jet_in = scaler.inverse_transform(batch.x.detach().cpu())
+        emd_val = ef.emd.emd(jet_in.numpy(), out.numpy())
+        true_emd.append(emd_val)
+
+        # TODO
+        lf.loss_ftn(batch.x, out, batch.batch)
 
 if __name__ == '__main__':
     test_reco_relative_diff()
