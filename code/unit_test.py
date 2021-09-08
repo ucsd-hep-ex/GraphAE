@@ -68,6 +68,7 @@ def test_reco_relative_diff():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mod-path', type=str, help='model save file', required=True)
     parser.add_argument('--plot-dir', type=str, help='plot save dir', required=True)
+    parser.add_argument('--model', type=str, help='name of model class', required=False, default='EdgeNet')
     args = parser.parse_args()
 
     gdata = GraphDataset(root='/anomalyvol/data/bb_train_sets/test_rel/', bb=0)
@@ -81,7 +82,7 @@ def test_reco_relative_diff():
     scaler = Standardizer()
     scaler.fit(data_x)
 
-    model = get_model('EdgeNet', input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
+    model = get_model(args.model, input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
     model.load_state_dict(torch.load(args.mod_path, map_location=device))
     model.to(device)
     model.eval()
@@ -115,7 +116,7 @@ def test_plot_emd_corr():
 
     random.Random(0).shuffle(dataset)
     small_sample = dataset[:int(0.10 * len(dataset))]
-    loader = DataLoader(small_sample, batch_size=256)
+    loader = DataLoader(small_sample, batch_size=1)
 
     data_x = torch.cat([d.x for d in small_sample])
     scaler = Standardizer()
@@ -134,13 +135,20 @@ def test_plot_emd_corr():
         batch.x[:,:] = scaler.transform(batch.x)
         batch.to(device)
         out = model(batch)
-        out = scaler.inverse_transform(out.detach().cpu())
-        jet_in = scaler.inverse_transform(batch.x.detach().cpu())
-        emd_val = ef.emd.emd(jet_in.numpy(), out.numpy(), n_iter_max=500000)
+        try:
+            out = scaler.inverse_transform(out.detach().cpu())
+            jet_in = scaler.inverse_transform(batch.x.detach().cpu())
+            emd_val = ef.emd.emd(jet_in.numpy(), out.numpy(), n_iter_max=500000)
+        except RuntimeError as err:
+            Path('debug').mkdir(exist_ok=True)
+            np.save('debug/emd_jet_in', jet_in.numpy())
+            np.save('debug/emd_jet_out', out.numpy())
+            raise RuntimeError(err)
+
         true_emd.append(emd_val)
 
-        batch.x[:,:] = scaler.inverse_transform(batch.x)
-        out = scaler.inverse_transform(out)
+        batch.x[:,:] = scaler.inverse_transform(batch.x.detach().cpu()).to(device)
+        out = scaler.inverse_transform(out.detach().cpu()).to(device)
         emd_loss = lf.loss_ftn(batch.x, out, batch.batch, mean=False)
         pred_emd.append(emd_loss)
 
@@ -151,4 +159,5 @@ def test_plot_emd_corr():
     plot_emd_corr(true_emd, pred_emd, save_dir, save_name)
 
 if __name__ == '__main__':
-    test_plot_emd_corr()
+    # test_plot_emd_corr()
+    test_reco_relative_diff()
