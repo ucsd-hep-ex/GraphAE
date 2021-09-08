@@ -1,8 +1,19 @@
 import torch
+import random
+import numpy as np
+from tqdm import tqdm
+from tqdm import tqdm
 from itertools import chain
+from sklearn.preprocessing import StandardScaler
+from torch_geometric.data import Data, DataLoader
+
+import models.models as models
 from util.scaler import Standardizer
 from datagen.graph_data_gae import GraphDataset
-from sklearn.preprocessing import StandardScaler
+from util.train_util import get_model, forward_loss
+from util.plot_util import *
+
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def test_standardization(data):
     scaler1 = Standardizer()
@@ -20,8 +31,75 @@ def test_standardization(data):
     assert torch.allclose(t1, t2, atol=1e-7), "Inverse transformations do not match"
     return "standardization good"
 
-if __name__ == '__main__':
+def test_plot_jet_images():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mod-path', type=str, help='model save file', required=True)
+    parser.add_argument('--plot-dir', type=str, help='plot save dir', required=True)
+    args = parser.parse_args()
+
     gdata = GraphDataset(root='/anomalyvol/data/bb_train_sets/test_rel/', bb=0)
-    gdata = [data for data in chain.from_iterable(gdata)]
-    x = torch.cat([d.x for d in gdata])
-    print(test_standardization(x))
+    dataset = [data for data in chain.from_iterable(gdata)]
+    data_x = torch.cat([d.x for d in dataset])
+
+    scaler = Standardizer()
+    scaler.fit(data_x)
+
+    random.Random(0).shuffle(dataset)
+    small_sample = dataset[:10]
+
+    model = get_model('EdgeNet', input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
+    model.load_state_dict(torch.load(args.mod_path, map_location=device))
+    model.to(device)
+    model.eval()
+
+    for i, batch in enumerate(small_sample):
+        plot_jet_images(batch.x.numpy(), args.plot_dir, f'jet_input_{i}')
+        batch.x[:,:] = scaler.transform(batch.x)
+        batch.to(device)
+        out = model(batch)
+        out = scaler.inverse_transform(out.detach().cpu())
+        plot_jet_images(out.numpy(), args.plot_dir, f'jet_output_{i}')
+
+def test_reco_relative_diff():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mod-path', type=str, help='model save file', required=True)
+    parser.add_argument('--plot-dir', type=str, help='plot save dir', required=True)
+    args = parser.parse_args()
+
+    gdata = GraphDataset(root='/anomalyvol/data/bb_train_sets/test_rel/', bb=0)
+    dataset = [data for data in chain.from_iterable(gdata)]
+
+    random.Random(0).shuffle(dataset)
+    small_sample = dataset[:int(0.10 * len(dataset))]
+    loader = DataLoader(small_sample, batch_size=256)
+
+    data_x = torch.cat([d.x for d in small_sample])
+    scaler = Standardizer()
+    scaler.fit(data_x)
+
+    model = get_model('EdgeNet', input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
+    model.load_state_dict(torch.load(args.mod_path, map_location=device))
+    model.to(device)
+    model.eval()
+
+    jet_in = []
+    jet_out = []
+    for batch in tqdm(loader):
+        batch.x[:,:] = scaler.transform(batch.x)
+        jet_in.append(batch.x.numpy())
+        batch.to(device)
+        out = model(batch)
+        # out = scaler.inverse_transform(out.detach().cpu())
+        jet_out.append(out.detach().cpu().numpy())
+
+    jet_in = np.concatenate(jet_in)
+    jet_out = np.concatenate(jet_out)
+    save_dir = args.plot_dir
+    save_name = 'reco_rel_difference'
+
+    reco_relative_diff(jet_in, jet_out, save_dir, save_name)
+
+if __name__ == '__main__':
+    test_reco_relative_diff()

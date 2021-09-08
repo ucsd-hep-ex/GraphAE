@@ -150,3 +150,49 @@ def gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch):
     ax.set_ylabel('Pred. EMD [GeV]')
     fig.savefig(osp.join(save_dir,f'EMD_corr_ep_{epoch}.pdf'))
     fig.savefig(osp.join(save_dir,f'EMD_corr_ep_{epoch}.png'))
+
+def plot_jet_images(jet, save_dir, save_name):
+    """
+    :param jet: np array [pt, y, phi]
+    """
+    if isinstance(jet, torch.Tensor):
+        jet = jet.numpy()
+
+    plt.imshow(ef.utils.pixelate(jet))
+    plt.savefig(osp.join(save_dir, save_name))
+    plt.close()
+
+def reco_relative_diff(jet_in, jet_out, save_dir, save_name):
+    """
+    Plot relative difference between input and predicted features.
+    Assumes standard distribution
+
+    :param jet_in: np array [pt, y, phi]
+    :param jet_out: np array [pt, y, phi]
+    """
+    if isinstance(jet_in, torch.Tensor):
+        jet_in = jet_in.numpy()
+    if isinstance(jet_out, torch.Tensor):
+        jet_out = jet_out.numpy()
+
+    rel_diff = (jet_out - jet_in) / (jet_in + 1e-12)
+
+    bins = np.linspace(-1,1, 30)
+
+    plt.hist(rel_diff[:,0], bins=bins)
+    feat = 'p_T'
+    plt.title(feat)
+    plt.savefig(osp.join(save_dir, save_name + '_' + feat))
+    plt.close()
+
+    plt.hist(rel_diff[:,1], bins=bins)
+    feat = 'eta'
+    plt.title(feat)
+    plt.savefig(osp.join(save_dir, save_name + '_' + feat))
+    plt.close()
+
+    plt.hist(rel_diff[:,2], bins=bins)
+    feat = 'phi'
+    plt.title(feat)
+    plt.savefig(osp.join(save_dir, save_name + '_' + feat))
+    plt.close()
