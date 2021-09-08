@@ -103,11 +103,11 @@ def test_reco_relative_diff():
 
     reco_relative_diff(jet_in, jet_out, save_dir, save_name)
 
-def test_true_emd_calc():
+def test_plot_emd_corr():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gae-mod-path', type=str, help='gae model save file', required=True)
-    parser.add_argument('--emd-mod-path', type=str, help='emd model save file', required=True)
+    parser.add_argument('--mod-path', type=str, help='gae model save file', required=True)
+    parser.add_argument('--plot-dir', type=str, help='plot save dir', required=True)
     args = parser.parse_args()
 
     gdata = GraphDataset(root='/anomalyvol/data/bb_train_sets/test_rel/', bb=0)
@@ -122,7 +122,7 @@ def test_true_emd_calc():
     scaler.fit(data_x)
 
     model = get_model('EdgeNet', input_dim=3, hidden_dim=2, big_dim=32, emd_modname=None)
-    model.load_state_dict(torch.load(args.gae_mod_path, map_location=device))
+    model.load_state_dict(torch.load(args.mod_path, map_location=device))
     model.to(device)
     model.eval()
 
@@ -136,11 +136,19 @@ def test_true_emd_calc():
         out = model(batch)
         out = scaler.inverse_transform(out.detach().cpu())
         jet_in = scaler.inverse_transform(batch.x.detach().cpu())
-        emd_val = ef.emd.emd(jet_in.numpy(), out.numpy())
+        emd_val = ef.emd.emd(jet_in.numpy(), out.numpy(), n_iter_max=500000)
         true_emd.append(emd_val)
 
-        # TODO
-        lf.loss_ftn(batch.x, out, batch.batch)
+        batch.x[:,:] = scaler.inverse_transform(batch.x)
+        out = scaler.inverse_transform(out)
+        emd_loss = lf.loss_ftn(batch.x, out, batch.batch, mean=False)
+        pred_emd.append(emd_loss)
+
+    pred_emd = torch.cat(pred_emd).numpy()
+    save_dir = args.plot_dir
+    save_name = 'emd_correlation'
+
+    plot_emd_corr(true_emd, pred_emd, save_dir, save_name)
 
 if __name__ == '__main__':
-    test_reco_relative_diff()
+    test_plot_emd_corr()

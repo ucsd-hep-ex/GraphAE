@@ -196,3 +196,18 @@ def reco_relative_diff(jet_in, jet_out, save_dir, save_name):
     plt.title(feat)
     plt.savefig(osp.join(save_dir, save_name + '_' + feat))
     plt.close()
+
+def plot_emd_corr(true_emd, pred_emd, save_dir, save_name):
+    """
+    :param true_emd: np array
+    :param pred_emd: np array
+    """
+    max_range = max(np.max(true_emd), np.max(pred_emd))
+    fig, ax = plt.subplots(figsize =(5, 5))
+    plt.hist2d(true_emd, pred_emd)
+    x_bins = np.linspace(0, max_range, 101)
+    y_bins = np.linspace(0, max_range, 101)
+    ax.set_xlabel('True EMD')  
+    ax.set_ylabel('Pred. EMD')
+    plt.savefig(osp.join(save_dir, save_name))
+    plt.close()

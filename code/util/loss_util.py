@@ -86,6 +86,12 @@ class LossFunction:
         return BCE + KLD
 
     def emd_loss(self, x, y, batch, mean=True):
+        """
+        :param x: torch array relative (pt, eta, phi) (not standardized)
+        :param y: torch array relative (pt, eta, phi) (not standardized)
+        :param batch: torch array of batch indices as in Data.batch
+        :param mean: return average of loss or list of losses
+        """
         self.emd_model.eval()
         # px py pz -> pt eta phi
         data = preprocess_emdnn_input(x, y, batch)
