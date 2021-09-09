@@ -116,6 +116,8 @@ class LossFunction:
         pass
 
     def hungarian_loss(self, x, y):
+        """heavily based on the the function found in
+            https://github.com/Cyanogenoid/dspn/blob/be3703b470ead46d76b70b4fed656c2e5343aff6/dspn/utils.py#L6-L23"""
         # x and y shape :: (n, c, s)
         x, y = outer(x, y)
         # squared_error shape :: (n, s, s)
@@ -133,3 +135,13 @@ class LossFunction:
 
     def hungarian_loss_per_sample(sample_np):
         return scipy.optimize.linear_sum_assignment(sample_np)
+    
+    def outer(a, b=None):
+        """ Compute outer product between a and b (or a and a if b is not specified). """
+        if b is None:
+            b = a
+        size_a = tuple(a.size()) + (b.size()[-1],)
+        size_b = tuple(b.size()) + (a.size()[-1],)
+        a = a.unsqueeze(dim=-1).expand(*size_a)
+        b = b.unsqueeze(dim=-2).expand(*size_b)
+        return a, b
