@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: chamfer-job
+  name: hungarian-job
   labels:
     jobgroup: gae-train-job
 spec:
@@ -15,9 +15,9 @@ spec:
         args:
         - "/opt/repo/GraphAE/code/train_script.py"
         - --mod-name
-        - "chamfer_job"
+        - "hungarian_job"
         - --input-dir
-        - "/anomalyvol/data/bb_train_sets/bb0_xyz"
+        - "/anomalyvol/data/bb_train_sets/bb0"
         - --box-num
         - "0"
         - --model
@@ -27,7 +27,7 @@ spec:
         - --lr
         - "1e-3"
         - --loss
-        - "chamfer_loss"
+        - "hungarian_loss"
         volumeMounts:
         - mountPath: /anomalyvol
           name: anomalyvol-2
