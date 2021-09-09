@@ -51,7 +51,7 @@ spec:
           - https://github.com/AnthonyAportela/GraphAE
           - -b
           - main
-          - /opt/repo/GraphAE/code/train_script
+          - /opt/repo/GraphAE
         volumeMounts:
           - name: git-repo
             mountPath: /opt/repo
@@ -71,4 +71,5 @@ spec:
                   operator: In
                   values:
                   - 1080Ti
+                  - 2080Ti
   backoffLimit: 5
