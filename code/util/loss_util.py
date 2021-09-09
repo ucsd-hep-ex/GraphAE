@@ -127,7 +127,7 @@ class LossFunction:
         # https://github.com/zichunhao/mnist_graph_autoencoder/blob/master/utils/loss.py
         dist = pairwise_distance(x, y, self.device)
         
-        dist_np = dist.detatch().cpu().numpy()
+        dist_np = dist.detach().cpu().numpy()
         indices = map(hungarian_lps, dist_np)
         
         losses = [
