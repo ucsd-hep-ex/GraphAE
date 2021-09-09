@@ -1,5 +1,6 @@
 import sys
 import torch
+import scipy.optimize
 import numpy as np
 import torch_scatter
 import os.path as osp
@@ -113,3 +114,22 @@ class LossFunction:
 
     def emd_in_forward(self):
         pass
+
+    def hungarian_loss(self, x, y):
+        # x and y shape :: (n, c, s)
+        x, y = outer(x, y)
+        # squared_error shape :: (n, s, s)
+        squared_error = F.smooth_l1_loss(x, y.expand_as(x), reduction="none").mean(1)
+
+        squared_error_np = squared_error.detach().cpu().numpy()
+        indices = map(hungarian_loss_per_sample, squared_error_np)
+        losses = [
+            sample[row_idx, col_idx].mean()
+            for sample, (row_idx, col_idx) in zip(squared_error, indices)
+        ]
+        total_loss = torch.mean(torch.stack(list(losses)))
+        return total_loss
+
+
+    def hungarian_loss_per_sample(sample_np):
+        return scipy.optimize.linear_sum_assignment(sample_np)
