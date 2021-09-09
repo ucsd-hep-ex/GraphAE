@@ -49,6 +49,20 @@ def pairwise_distance(x, y, device=None):
 
     return dist
 
+def hungarian_loss_per_sample(sample_np):
+    return scipy.optimize.linear_sum_assignment(sample_np)
+
+def outer(a, b=None):
+    """ Compute outer product between a and b (or a and a if b is not specified). """
+    if b is None:
+        b = a
+    size_a = tuple(a.size()) + (b.size()[-1],)
+    size_b = tuple(b.size()) + (a.size()[-1],)
+    a = a.unsqueeze(dim=-1).expand(*size_a)
+    b = b.unsqueeze(dim=-2).expand(*size_b)
+    return a, b
+
+
 class LossFunction:
     def __init__(self, lossname, emd_model_name='EmdNNSpl', device=torch.device('cuda:0')):
         if lossname == 'mse':
@@ -133,15 +147,4 @@ class LossFunction:
         return total_loss
 
 
-    def hungarian_loss_per_sample(sample_np):
-        return scipy.optimize.linear_sum_assignment(sample_np)
-    
-    def outer(a, b=None):
-        """ Compute outer product between a and b (or a and a if b is not specified). """
-        if b is None:
-            b = a
-        size_a = tuple(a.size()) + (b.size()[-1],)
-        size_b = tuple(b.size()) + (a.size()[-1],)
-        a = a.unsqueeze(dim=-1).expand(*size_a)
-        b = b.unsqueeze(dim=-2).expand(*size_b)
-        return a, b
+
