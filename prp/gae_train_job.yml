@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: hungarian_job
+  name: hungarian-job
   labels:
     jobgroup: gae-train-job
 spec:
