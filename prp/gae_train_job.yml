@@ -15,7 +15,7 @@ spec:
         args:
         - "/opt/repo/GraphAE/code/train_script.py"
         - --mod-name
-        - "mse_alldata"
+        - "hungarian_job"
         - --input-dir
         - "/anomalyvol/data/bb_train_sets/bb0_xyz"
         - --box-num
@@ -27,7 +27,7 @@ spec:
         - --lr
         - "1e-3"
         - --loss
-        - "mse"
+        - "hungarian_loss"
         volumeMounts:
         - mountPath: /anomalyvol
           name: anomalyvol-2
