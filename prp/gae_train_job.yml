@@ -21,7 +21,7 @@ spec:
         - --box-num
         - "0"
         - --model
-        - "EdgeNetEMD"
+        - "EdgeNet"
         - --batch-size
         - "512"
         - --lr
