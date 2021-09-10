@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: anomaly-graph-job-bb0
+  name: anomaly-graph-job-datatest
   labels:
     jobgroup: anomaly-graph-job
 spec:
@@ -14,9 +14,9 @@ spec:
         command:
         - "python"
         args:
-        - "/opt/repo/AnomalyDetection4Jets/code/graph_data.py"
+        - "/opt/repo/GraphAE/code/graph_data.py"
         - --dataset
-        - "/anomalyvol/data/bb_train_sets/bb0"
+        - "/anomalyvol/data/datatest"
         - --n-proc
         - "10"
         - --bb
@@ -43,10 +43,10 @@ spec:
         args:
           - clone
           - --single-branch
-          - https://github.com/stsan9/AnomalyDetection4Jets
+          - https://github.com/AnthonyAportela/GraphAE
           - -b
-          - master
-          - /opt/repo/AnomalyDetection4Jets
+          - main
+          - /opt/repo/GraphAE
         volumeMounts:
           - name: git-repo
             mountPath: /opt/repo
