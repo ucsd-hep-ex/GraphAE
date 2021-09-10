@@ -21,8 +21,6 @@ spec:
         - "EdgeNet"
         - --loss
         - "mse"
-        - --box-num
-        - "0"
         - --features
         - "xyz"
         - --overwrite
