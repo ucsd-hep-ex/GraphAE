@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bump-hunt-rnd
+  labels:
+    jobgroup: anomaly-graph-job
+spec:
+  template:
+    spec:
+      priorityClassName: nice
+      containers:
+      - name: postprocessing
+        image:  gitlab-registry.nautilus.optiputer.net/stsan9/anomalydetection4jets:latest
+        command:
+        - "python"
+        args:
+        - "/opt/repo/GraphAE/code/bump_hunt.py"
+        - --model-path
+        - "/anomalyvol/experiments/mse_test_all"
+        - --model
+        - "EdgeNet"
+        - --loss
+        - "mse"
+        - --box-num
+        - "0"
+        - --features
+        - "xyz"
+        - --overwrite
+        - --box-num
+        - "4"
+        volumeMounts:
+        - mountPath: /anomalyvol
+          name: anomalyvol-2
+        - name: git-repo
+          mountPath: /opt/repo
+        resources:
+          limits:
+            memory: 128Gi
+            cpu: "8"
+            nvidia.com/gpu: "1"
+          requests:
+            memory: 64Gi
+            cpu: "2"
+            nvidia.com/gpu: "1"    
+      initContainers:
+      - name: init-clone-repo
+        image: alpine/git
+        args:
+          - clone
+          - --single-branch
+          - https://github.com/ucsd-hep-ex/GraphAE
+          - -b
+          - main
+          - /opt/repo/GraphAE
+        volumeMounts:
+          - name: git-repo
+            mountPath: /opt/repo
+      volumes:
+      - name: git-repo
+        emptyDir: {}
+      - name: anomalyvol-2
+        persistentVolumeClaim:
+          claimName: anomalyvol-2
+      restartPolicy: Never
+  backoffLimit: 5
