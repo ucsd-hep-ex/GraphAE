@@ -14,7 +14,7 @@ spec:
         command:
         - "python"
         args:
-        - "/opt/repo/GraphAE/code/graph_data.py"
+        - "/opt/repo/GraphAE/code/gen_gae_dataset.py"
         - --dataset
         - "/anomalyvol/data/datatest"
         - --n-proc
