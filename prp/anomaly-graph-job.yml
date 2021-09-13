@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: anomaly-graph-job-datatest
+  name: anomaly-graph-job-datatest-2
   labels:
     jobgroup: anomaly-graph-job
 spec:
