@@ -23,6 +23,8 @@ spec:
         - "0"
         - --n-events-merge
         - "10000"
+        - --features
+        - "relptetaphi"
         volumeMounts:
         - mountPath: /anomalyvol
           name: anomalyvol-2
