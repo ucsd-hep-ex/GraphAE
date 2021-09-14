@@ -20,11 +20,11 @@ spec:
         - --n-proc
         - "10"
         - --n-events
-        - "10000"
+        - "100000"
         - --bb
         - "0"
         - --n-events-merge
-        - "1000"
+        - "10000"
         - --features
         - "relptetaphi"
         volumeMounts:
