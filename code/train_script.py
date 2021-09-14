@@ -91,6 +91,15 @@ def main(args):
     random.Random(0).shuffle(dataset)
     dataset = dataset[:args.num_data]
 
+    # temporary patch
+    tmp = []
+    for d in dataset:
+        d.x = d.x[:,:3] # px py pz
+        if args.loss == 'deepemd_loss' and len(d.x) <= 30:
+            tmp.append(d)
+    if args.loss == 'deepemd_loss':
+        dataset = tmp
+
     fulllen = len(dataset)
     train_len = int(0.8 * fulllen)
     tv_len = int(0.10 * fulllen)
