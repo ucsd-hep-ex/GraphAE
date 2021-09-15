@@ -54,7 +54,7 @@ class GraphDataset(Dataset):
             bb (int): dataset to read in (0=background)
             n_events (int): how many events to process (-1=all)
             n_proc (int): number of processes to split into
-            n_events_merge (int): how many events to merge
+            n_events_merge (int): how many jets to merge (each event is 2 jets)
             features (str): (px, py, pz) or relative (pt, eta, phi)
         """
         max_events = int(1.1e6 if bb == -1 else 1e6)
@@ -121,7 +121,6 @@ class GraphDataset(Dataset):
                     particles = z
 
             event_idx = k*self.chunk_size + row
-            print('n_particles', n_particles)
             pairs = np.stack([[m, n] for (m, n) in itertools.product(range(n_particles),range(n_particles)) if m!=n])
             edge_index = torch.tensor(pairs, dtype=torch.long)
             edge_index=edge_index.t().contiguous()
@@ -135,12 +134,9 @@ class GraphDataset(Dataset):
                 data = self.pre_transform(data)
 
             datas.append([data])
-            if len(datas) == 100:
-                print('row', row)
-                print('before sum', datas)
-                print('length', len(datas))
+            if len(datas) == self.n_events_merge:
                 datas = sum(datas,[])
-                print('after sum', datas)
+                print('Writing out {} jets at event {}'.format(self.n_events_merge, event_idx))
                 torch.save(datas, osp.join(self.processed_dir, self.file_string[self.bb].format(event_idx)))
                 datas = []
 
