@@ -23,7 +23,7 @@ spec:
         - --model
         - "EdgeNet"
         - --batch-size
-        - "512"
+        - "16"
         - --lr
         - "1e-3"
         - --loss
