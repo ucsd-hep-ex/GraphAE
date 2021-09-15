@@ -16,7 +16,7 @@ spec:
         args:
         - "/opt/repo/GraphAE/code/gen_gae_dataset.py"
         - --dataset
-        - "/anomalyvol/data/datatest/"
+        - "/anomalyvol/data/datatest"
         - --n-proc
         - "10"
         - --n-events
