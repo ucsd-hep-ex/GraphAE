@@ -23,7 +23,7 @@ spec:
         - --model
         - "EdgeNet"
         - --batch-size
-        - "1024"
+        - "512"
         - --lr
         - "1e-3"
         - --loss
@@ -37,11 +37,11 @@ spec:
           limits:
             memory: 256Gi
             cpu: "1"
-            nvidia.com/gpu: "4"
+            nvidia.com/gpu: "1"
           requests:
             memory: 128Gi
             cpu: "1"
-            nvidia.com/gpu: "4"    
+            nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
         image: alpine/git
@@ -71,4 +71,5 @@ spec:
                   operator: In
                   values:
                   - 2080Ti
+                  - 1080Ti
   backoffLimit: 5
