@@ -165,19 +165,19 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     # bump hunter
     # now reweight the background prediction to make it more accurate
     weights = fit_function(nonoutlier_mass, *popt)
-    bh = BH.BumpHunter(rang=[xmin,xmax],
-                        bins=bins,
-                        weights=weights,
-                        width_min=2,
-                        width_max=5,
-                        Npe=10000,
-                        seed=42)
-    bh.BumpScan(outlier_mass, nonoutlier_mass)
+    bh = BH.BumpHunter1D(rang=[xmin, xmax],
+                         bins=bins,
+                         weights=weights,
+                         width_min=2,
+                         width_max=5,
+                         npe=10000,
+                         seed=42)
+    bh.bump_scan(outlier_mass, nonoutlier_mass)
     sys.stdout = open(save_name+'.txt', "w")
-    bh.PrintBumpTrue(outlier_mass, nonoutlier_mass)
+    bh.print_bump_true(outlier_mass, nonoutlier_mass)
     sys.stdout = sys.__stdout__
-    bh.PlotBump(data=outlier_mass, bkg=nonoutlier_mass,filename=save_name+'.pdf')
-    bh.PlotBHstat(show_Pval=True,filename=save_name+'_stat.pdf')
+    bh.plot_bump(data=outlier_mass, bkg=nonoutlier_mass, filename=save_name+'.pdf', x_label=r'$m_{jj}$')
+    bh.plot_stat(show_Pval=True, filename=save_name+'_stat.pdf')
 
 def process(data_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features):
     """
