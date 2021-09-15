@@ -25,7 +25,7 @@ spec:
         - --batch-size
         - "16"
         - --lr
-        - "1e-3"
+        - ".001"
         - --loss
         - "hungarian_loss"
         volumeMounts:
