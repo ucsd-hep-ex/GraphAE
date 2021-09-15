@@ -17,7 +17,7 @@ spec:
         - --mod-name
         - "hungarian_job"
         - --input-dir
-        - "/anomalyvol/data/bb_train_sets/bb0_xyz/"
+        - "/anomalyvol/data/datatest/"
         - --box-num
         - "0"
         - --model
