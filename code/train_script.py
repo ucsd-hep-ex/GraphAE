@@ -127,7 +127,7 @@ def main(args):
     model = get_model(args.model, input_dim=input_dim, big_dim=big_dim, hidden_dim=hidden_dim, emd_modname=args.emd_model_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, threshold=1e-6)
 
     # load model
     valid_losses = []
