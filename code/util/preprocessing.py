@@ -15,13 +15,14 @@ def get_iqr_proportions(dataset):
     return iqr_prop
 
 
-def standardize(train_dataset, valid_dataset, test_dataset, log_pt=True):
+def standardize(train_dataset, valid_dataset, test_dataset, log_pt=False):
     """
     standardize dataset and return scaler for inversion
 
     :param train_dataset: list of Data objects
     :param valid_dataset: list of Data objects
     :param test_dataset: list of Data objects
+    :param log_pt: log pt before standardization
 
     :return scaler: sklearn StandardScaler
     """
