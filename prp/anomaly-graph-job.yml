@@ -16,15 +16,13 @@ spec:
         args:
         - "/opt/repo/GraphAE/code/gen_gae_dataset.py"
         - --dataset
-        - "/anomalyvol/data/datatest"
+        - "/anomalyvol/data/datatest/"
         - --n-proc
         - "10"
-        - --n-events
-        - "1000"
         - --bb
         - "0"
         - --n-events-merge
-        - "100"
+        - "10000"
         - --features
         - "xyz"
         volumeMounts:
@@ -34,11 +32,11 @@ spec:
           mountPath: /opt/repo
         resources:
           limits:
-            memory: 64Gi
+            memory: 128Gi
             cpu: "10"
             #nvidia.com/gpu: "1"
           requests:
-            memory: 32Gi
+            memory: 64Gi
             cpu: "10"
             #nvidia.com/gpu: "1"    
       initContainers:
