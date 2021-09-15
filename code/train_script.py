@@ -17,7 +17,8 @@ import models.emd_models as emd_models
 from util.loss_util import LossFunction
 from datagen.graph_data_gae import GraphDataset
 from util.train_util import get_model, forward_loss
-from util.plot_util import loss_curves, plot_reco_difference, gen_in_out, gen_emd_corr
+from util.preprocessing import get_iqr_proportions, standardize
+from util.plot_util import loss_curves, gen_emd_corr, plot_reco_for_loader
 
 torch.manual_seed(0)
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -110,7 +111,14 @@ def main(args):
         valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
         test_loader  = DataLoader(test_dataset,  batch_size=args.batch_size, num_workers=num_workers, pin_memory=True, shuffle=False)
 
-    loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device)
+    # preprocessing options
+    iqr_prop = None
+    if 'iqr' in args.loss:
+        iqr_prop = get_iqr_proportions(train_dataset)
+    if args.standardize:
+        scaler = standardize(train_dataset, valid_dataset, test_dataset)
+
+    loss_ftn_obj = LossFunction(args.loss, emd_model_name=args.emd_model_name, device=device, iqr_prop=iqr_prop)
 
     # model
     input_dim = 3
@@ -119,7 +127,7 @@ def main(args):
     model = get_model(args.model, input_dim=input_dim, big_dim=big_dim, hidden_dim=hidden_dim, emd_modname=args.emd_model_name)
 
     optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, threshold=1e-6)
 
     # load model
     valid_losses = []
@@ -149,11 +157,11 @@ def main(args):
     for epoch in range(start_epoch, n_epochs):
 
         loss = train(model, optimizer, train_loader, train_samples, args.batch_size, loss_ftn_obj)
-        if epoch % 5 == 0 and args.loss == 'emd_loss':
-            valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
-            gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
-        else:
-            valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
+        # if epoch % 5 == 0 and args.loss == 'emd_loss':
+        #     valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
+        #     gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
+        # else:
+        valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
 
         scheduler.step(valid_loss)
         train_losses.append(loss)
@@ -191,11 +199,10 @@ def main(args):
         model = DataParallel(model)
     model.to(device)
 
-    input_fts, reco_fts = gen_in_out(model, valid_loader, device)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'))
-
-    input_fts, reco_fts = gen_in_out(model, test_loader, device)
-    plot_reco_difference(input_fts, reco_fts, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'))
+    inverse_standardization = args.standardize and args.plot_scale != 'standardized'
+    plot_reco_for_loader(model, train_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'train'), args.plot_scale)
+    plot_reco_for_loader(model, valid_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'valid'), args.plot_scale)
+    plot_reco_for_loader(model, test_loader, device, scaler, inverse_standardization, model_fname, osp.join(save_dir, 'reconstruction_post_train', 'test'), args.plot_scale)
     print('Completed')
 
 if __name__ == '__main__':
@@ -221,6 +228,9 @@ if __name__ == '__main__':
                         default=None, required=False)
     parser.add_argument('--num-workers', type=int, help='num_workers param for dataloader', 
                         default=0, required=False)
+    parser.add_argument("--standardize", action="store_true", help="normalize dataset", required=False)
+    parser.add_argument("--plot-scale", choices=['cartesian','hadronic','standardized'],
+                        help='classes for x-axis scaling for plotting reconstructions', default='cartesian', required=False)
     args = parser.parse_args()
 
     main(args)
