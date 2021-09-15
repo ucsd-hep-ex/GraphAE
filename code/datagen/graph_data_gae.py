@@ -16,7 +16,7 @@ import os.path as osp
 import multiprocessing
 from pathlib import Path
 from pyjet import cluster,DTYPE_PTEPM
-from torch_geometric.data import Dataset, Data
+from torch_geometric.data import Dataset, Data, Batch
 
 from util.gdata_util import jet_particles
 
@@ -127,8 +127,7 @@ class GraphDataset(Dataset):
             edge_index=edge_index.t().contiguous()
             x = torch.tensor(particles, dtype=torch.float) # node attribute and AE target
             u = torch.tensor([event_idx, n_particles, jet_mass, jet_px, jet_py, jet_pz, jet_e, signal_bit], dtype=torch.float)
-            data = Data(x=x, edge_index=edge_index)
-            data.u = torch.unsqueeze(u, 0)
+            data = Data(x=x, edge_index=edge_index, u=torch.unsqueeze(u, 0))
 
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
@@ -136,13 +135,16 @@ class GraphDataset(Dataset):
                 data = self.pre_transform(data)
 
             datas.append([data])
-
-            if row % self.n_events_merge == self.n_events_merge-1:
+            if len(datas) == 100:
+                print('row', row)
+                print('before sum', datas)
+                print('length', len(datas))
                 datas = sum(datas,[])
+                print('after sum', datas)
                 torch.save(datas, osp.join(self.processed_dir, self.file_string[self.bb].format(event_idx)))
                 datas = []
 
-        if len(data) != 0:  # save any extras
+        if len(datas) != 0:  # save any extras
             datas = sum(datas,[])
             torch.save(datas, osp.join(self.processed_dir, self.file_string[self.bb].format(event_idx)))
 

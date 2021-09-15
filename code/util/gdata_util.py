@@ -22,9 +22,10 @@ def jet_particles(df, R=1.0, u=False, features='xyz'):
                 pseudojets_input[j]['phi'] = all_events[i][j*3+2]
         sequence = cluster(pseudojets_input, R=R, p=-1)
         jets = sequence.inclusive_jets()[:2] # leading 2 jets only
-        if len(jets) < 2: continue
+        if len(jets) < 2: continue # at least 2 jets
+        if jets[0].pt < 200 or len(jets[0]) <= 1: continue # at least 1 particle and 200 GeV per jet
+        if jets[1].pt < 200 or len(jets[1]) <= 1: continue
         for jet in jets: # for each jet get (pt, eta, phi)
-            if jet.pt < 200 or len(jet)<=1: continue
             n_particles = len(jet)
             particles = np.zeros((n_particles, 3))
             # store all the particles of this jet

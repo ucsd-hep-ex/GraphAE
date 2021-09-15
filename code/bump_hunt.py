@@ -30,7 +30,7 @@ from torch_geometric.loader import DataListLoader
 import models.models as models
 import models.emd_models as emd_models
 from util.loss_util import LossFunction
-from datagen.graph_data_gae import GraphDataset
+from datagen.graph_data_gae import GraphDataset, collate
 from util.plot_util import loss_distr, plot_reco_difference
 
 plt.style.use(hep.style.CMS)
@@ -219,23 +219,23 @@ def process(data_loader, num_events, model_path, model, loss_ftn_obj, latent_dim
     event = 0
     # for each event in the dataset calculate the loss and inv mass for the leading 2 jets
     with torch.no_grad():
-        for k, data in tqdm.tqdm(enumerate(data_loader),total=len(data_loader)):
-            print(data)
-            data = data[0]  # remove extra bracket from DataListLoader since batch size is 1
+        for k, data_batch in tqdm.tqdm(enumerate(data_loader),total=len(data_loader)):
+            #data = [d[0] for d in data if len(d)>0] # remove extra bracket from DataListLoader
 
-            # mask 3rd jet in 3-jet events
-            event_list = torch.stack([d.u[0][0] for d in data]).cpu().numpy()
-            print(event_list)
-            unique, inverse, counts = np.unique(event_list, return_inverse=True, return_counts=True)
-            awk_array = awkward0.JaggedArray.fromparents(inverse, event_list)
-            print(awk_array)
-            mask = ((awk_array.localindex < 2).flatten()) * (counts[inverse]>1)
-            print(mask)
-            data = [d for d,m in zip(data, mask) if m]
+            #event_list = torch.stack([d.u[0,0] for d in data]).cpu().numpy()
+            #event_list = data.u[:,0].cpu().numpy()
+            #print(event_list)
+            #unique, inverse, counts = np.unique(event_list, return_inverse=True, return_counts=True)
+            #awk_array = awkward0.JaggedArray.fromparents(inverse, event_list)
+            #print(awk_array)
+            #mask = ((awk_array.localindex < 2).flatten()) * (counts[inverse]>1)
+            #print(mask)
+            #data = [d for d,m in zip(data, mask) if m]
             # get leading 2 jets
-            print(data)
-            data_batch = Batch.from_data_list(data)
+            #print(data)
+            #data_batch = Batch.from_data_list(data)
 
+            print('event_idx', data_batch.u[:,0])
             # select appropriate features based on what model was trained on
             if features == 'xyz':
                 data_batch.x = data_batch.x[:,:3]
@@ -413,8 +413,11 @@ def main(args):
     if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
         gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
-        #gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num)
-        bb_loader = DataListLoader(gdata, batch_size=100)
+        #gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num, features=features)
+        print([data for data in gdata])
+        bb_loader = DataListLoader(gdata, batch_size=1, pin_memory=True, shuffle=False)
+        bb_loader.collate_fn = collate
+        print(bb_loader)
         proc_jets, input_fts, reco_fts = process(bb_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features)
         df = get_df(proc_jets)
         df.to_pickle(osp.join(save_path,'df.pkl'))
