@@ -19,10 +19,12 @@ spec:
         - "/anomalyvol/data/datatest/"
         - --n-proc
         - "10"
+        - --n-events
+        - "1000"
         - --bb
         - "0"
         - --n-events-merge
-        - "10000"
+        - "100"
         - --features
         - "xyz"
         volumeMounts:
