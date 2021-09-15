@@ -24,7 +24,7 @@ def jet_particles(df, R=1.0, u=False, features='xyz'):
         jets = sequence.inclusive_jets()[:2] # leading 2 jets only
         if len(jets) < 2: continue
         for jet in jets: # for each jet get (pt, eta, phi)
-            if jet.pt < 200 or len(jets)<=1: continue
+            if jet.pt < 200 or len(jet)<=1: continue
             n_particles = len(jet)
             particles = np.zeros((n_particles, 3))
             # store all the particles of this jet

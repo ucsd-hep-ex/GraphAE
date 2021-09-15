@@ -37,7 +37,7 @@ class GraphDataset(Dataset):
         return_list = list(map(osp.basename, proc_list))[:n_files]
         return natsorted(return_list)
 
-    def __len__(self):
+    def len(self):
         return len(self.processed_file_names)
 
     def download(self):
@@ -96,9 +96,6 @@ class GraphDataset(Dataset):
                 torch.save(datas, osp.join(self.processed_dir, 'data_{}.pt'.format(k)))
                 datas=[]
             
-    def len(self):
-        return len(self.processed_file_names)
-
     def get(self, idx):
         data = torch.load(osp.join(self.processed_dir, self.processed_file_names[idx]))
         return data

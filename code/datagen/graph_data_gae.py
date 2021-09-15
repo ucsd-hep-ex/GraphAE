@@ -121,6 +121,7 @@ class GraphDataset(Dataset):
                     particles = z
 
             event_idx = k*self.chunk_size + row
+            print('n_particles', n_particles)
             pairs = np.stack([[m, n] for (m, n) in itertools.product(range(n_particles),range(n_particles)) if m!=n])
             edge_index = torch.tensor(pairs, dtype=torch.long)
             edge_index=edge_index.t().contiguous()
