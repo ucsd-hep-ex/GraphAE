@@ -117,8 +117,8 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     popt, pcov = curve_fit(fit_function, 
                            xdata=binscenters[mask], 
                            ydata=ratio[mask], 
-                           p0=[1]*5,
-                           bounds=(0, [100, 100, 100, 100, 100]))
+                           p0=[0.1]*5,
+                           bounds=(0, [np.inf, np.inf, np.inf, np.inf, np.inf]))
     
     # save fit reesult in plot
     f, axs = plt.subplots(1,2, figsize=(16, 6))
@@ -139,6 +139,7 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     #axs[1].set_ylim(1,1e4)
     axs[1].legend(title='Postfit')
     axs[1].semilogy()
+    f.savefig(save_name+'_postfit.pdf')
     
     # Plot the histogram and the fitted function
     # Generate enough x values to make the curves look smooth.
@@ -162,7 +163,8 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     axs[1].set_xlim(xmin, xmax)
     #axs[1].set_ylim(0, 2)
     axs[1].legend(loc='upper right')
-
+    f.savefig(save_name+'_ratio.pdf')
+    
     # bump hunter
     # now reweight the background prediction to make it more accurate
     weights = fit_function(nonoutlier_mass, *popt)
