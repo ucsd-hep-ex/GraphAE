@@ -105,7 +105,7 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     # define fit function.
     def fit_function(x, p0, p1, p2, p3, p4):
         xnorm = (x-xmin)/(xmax-xmin)
-        return p0 + p1*xnorm + p2*xnorm**2 + p3*xnorm**3 + p4*xnorm**4
+        return p0*(1-xnorm)**4 + 4*p1*xnorm*(1-xnorm)**3 + 6*p2*xnorm**2*(1-xnorm)**2 + 4*p3*xnorm**3*(1-xnorm) + p4*xnorm**4
 
     # do the fit
     binscenters = np.array([0.5 * (bins[i] + bins[i+1]) for i in range(len(bins)-1)])
@@ -117,7 +117,8 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     popt, pcov = curve_fit(fit_function, 
                            xdata=binscenters[mask], 
                            ydata=ratio[mask], 
-                           p0=[1]*5)
+                           p0=[1]*5,
+                           bounds=(0, [100, 100, 100, 100, 100]))
     
     # save fit reesult in plot
     f, axs = plt.subplots(1,2, figsize=(16, 6))
@@ -396,7 +397,7 @@ def main(args):
 
     if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
-        #gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
+        # gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
         gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, n_events=num_events, bb=box_num, features=features)
         bb_loader = DataListLoader(gdata, batch_size=1, pin_memory=True, shuffle=False)
         bb_loader.collate_fn = collate
