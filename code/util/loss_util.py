@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import torch_scatter
 import os.path as osp
+import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.utils import to_dense_batch
 
@@ -49,18 +50,17 @@ def pairwise_distance(x, y, device=None):
     return dist
 
 class LossFunction:
-    def __init__(self, lossname, emd_model_name='EmdNNSpl', device=torch.device('cuda:0')):
-        if lossname == 'mse':
-            loss = torch.nn.MSELoss(reduction='mean')
-        else:
-            loss = getattr(self, lossname)
-            if lossname == 'emd_loss':
-                # if using DataParallel it's merged into the network's forward pass to distribute gpu memory
-                self.emd_model = load_emd_model(emd_model_name, device)
-                # self.emd_model = emd_model.requires_grad_(False)
+    def __init__(self, lossname, emd_model_name='EmdNNSpl', iqr_prop=None, device=torch.device('cuda:0')):
+        loss = getattr(self, lossname)
+        if lossname == 'emd_loss':
+            # if using DataParallel it's merged into the network's forward pass to distribute gpu memory
+            self.emd_model = load_emd_model(emd_model_name, device)
+            # self.emd_model = emd_model.requires_grad_(False)
         self.name = lossname
         self.loss_ftn = loss
         self.device = device
+        if iqr_prop != None:
+            self.iqr_prop = iqr_prop.to(device)
 
     def chamfer_loss(self, x, y, batch):
         x = to_dense_batch(x, batch)[0]
@@ -86,6 +86,12 @@ class LossFunction:
         return BCE + KLD
 
     def emd_loss(self, x, y, batch, mean=True):
+        """
+        :param x: torch array relative (pt, eta, phi) (not standardized)
+        :param y: torch array relative (pt, eta, phi) (not standardized)
+        :param batch: torch array of batch indices as in Data.batch
+        :param mean: return average of loss or list of losses
+        """
         self.emd_model.eval()
         # px py pz -> pt eta phi
         data = preprocess_emdnn_input(x, y, batch)
@@ -108,8 +114,19 @@ class LossFunction:
         emd = deepemd(x, y, device=self.device, l2_strength=l2_strength)
         return emd
 
-    def mse(self):
+    def iqr_mse(self, x, y):
+        weighted_mse = F.mse_loss(x, y, reduction='none') * self.iqr_prop
+        return torch.mean(weighted_mse)
+
+    def mse_conversion(self, x, y):
+        """
+        transform pt eta phi rel to px py pz before taking mse
+        """
         pass
+
+    def mse(self, x, y):
+        return F.mse_loss(x, y, reduction='mean')
 
     def emd_in_forward(self):
         pass
+
