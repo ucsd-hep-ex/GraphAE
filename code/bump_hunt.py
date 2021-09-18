@@ -24,12 +24,13 @@ from torch.nn import MSELoss
 from scipy.optimize import curve_fit
 from torch.utils.data import random_split
 from matplotlib.backends.backend_pdf import PdfPages
-from torch_geometric.data import Data, DataListLoader, Batch
+from torch_geometric.data import Data, Batch
+from torch_geometric.loader import DataListLoader
 
 import models.models as models
 import models.emd_models as emd_models
 from util.loss_util import LossFunction
-from datagen.graph_data_gae import GraphDataset
+from datagen.graph_data_gae import GraphDataset, collate
 from util.plot_util import loss_distr, plot_reco_difference
 
 plt.style.use(hep.style.CMS)
@@ -104,7 +105,7 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     # define fit function.
     def fit_function(x, p0, p1, p2, p3, p4):
         xnorm = (x-xmin)/(xmax-xmin)
-        return p0 + p1*xnorm + p2*xnorm**2 + p3*xnorm**3 + p4*xnorm**4
+        return p0*(1-xnorm)**4 + 4*p1*xnorm*(1-xnorm)**3 + 6*p2*xnorm**2*(1-xnorm)**2 + 4*p3*xnorm**3*(1-xnorm) + p4*xnorm**4
 
     # do the fit
     binscenters = np.array([0.5 * (bins[i] + bins[i+1]) for i in range(len(bins)-1)])
@@ -116,7 +117,8 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     popt, pcov = curve_fit(fit_function, 
                            xdata=binscenters[mask], 
                            ydata=ratio[mask], 
-                           p0=[1]*5)
+                           p0=[0.1]*5,
+                           bounds=(0, [np.inf, np.inf, np.inf, np.inf, np.inf]))
     
     # save fit reesult in plot
     f, axs = plt.subplots(1,2, figsize=(16, 6))
@@ -137,6 +139,7 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     #axs[1].set_ylim(1,1e4)
     axs[1].legend(title='Postfit')
     axs[1].semilogy()
+    f.savefig(save_name+'_postfit.pdf')
     
     # Plot the histogram and the fitted function
     # Generate enough x values to make the curves look smooth.
@@ -160,23 +163,24 @@ def bump_hunter(nonoutlier_mass, outlier_mass, save_name):
     axs[1].set_xlim(xmin, xmax)
     #axs[1].set_ylim(0, 2)
     axs[1].legend(loc='upper right')
-
+    f.savefig(save_name+'_ratio.pdf')
+    
     # bump hunter
     # now reweight the background prediction to make it more accurate
     weights = fit_function(nonoutlier_mass, *popt)
-    bh = BH.BumpHunter(rang=[xmin,xmax],
-                        bins=bins,
-                        weights=weights,
-                        width_min=2,
-                        width_max=5,
-                        Npe=10000,
-                        seed=42)
-    bh.BumpScan(outlier_mass, nonoutlier_mass)
+    bh = BH.BumpHunter1D(rang=[xmin, xmax],
+                         bins=bins,
+                         weights=weights,
+                         width_min=2,
+                         width_max=5,
+                         npe=10000,
+                         seed=42)
+    bh.bump_scan(outlier_mass, nonoutlier_mass)
     sys.stdout = open(save_name+'.txt', "w")
-    bh.PrintBumpTrue(outlier_mass, nonoutlier_mass)
+    bh.print_bump_true(outlier_mass, nonoutlier_mass)
     sys.stdout = sys.__stdout__
-    bh.PlotBump(data=outlier_mass, bkg=nonoutlier_mass,filename=save_name+'.pdf')
-    bh.PlotBHstat(show_Pval=True,filename=save_name+'_stat.pdf')
+    bh.plot_bump(data=outlier_mass, bkg=nonoutlier_mass, filename=save_name+'.pdf', x_label=r'$m_{jj}$ [GeV]')
+    bh.plot_stat(show_Pval=True, filename=save_name+'_stat.pdf')
 
 def process(data_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features):
     """
@@ -216,21 +220,9 @@ def process(data_loader, num_events, model_path, model, loss_ftn_obj, latent_dim
     reco_fts = []
 
     event = 0
-    batch_size = 256
     # for each event in the dataset calculate the loss and inv mass for the leading 2 jets
     with torch.no_grad():
-        for k, data in tqdm.tqdm(enumerate(data_loader),total=len(data_loader)):
-            data = data[0]  # remove extra bracket from DataListLoader since batch size is 1
-
-            # mask 3rd jet in 3-jet events
-            event_list = torch.stack([d.u[0][0] for d in data]).cpu().numpy()
-            unique, inverse, counts = np.unique(event_list, return_inverse=True, return_counts=True)
-            awk_array = awkward0.JaggedArray.fromparents(inverse, event_list)
-            mask = ((awk_array.localindex < 2).flatten()) * (counts[inverse]>1)
-            data = [d for d,m in zip(data, mask) if m]
-            # get leading 2 jets
-            data_batch = Batch.from_data_list(data)
-
+        for k, data_batch in tqdm.tqdm(enumerate(data_loader),total=len(data_loader)):
             # select appropriate features based on what model was trained on
             if features == 'xyz':
                 data_batch.x = data_batch.x[:,:3]
@@ -407,9 +399,10 @@ def main(args):
 
     if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
-        # gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
-        gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, bb=box_num)
-        bb_loader = DataListLoader(gdata)
+        gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
+        # gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, n_events=num_events, bb=box_num, features=features)
+        bb_loader = DataListLoader(gdata, batch_size=1, pin_memory=True, shuffle=False)
+        bb_loader.collate_fn = collate
         proc_jets, input_fts, reco_fts = process(bb_loader, num_events, model_path, model, loss_ftn_obj, latent_dim, features)
         df = get_df(proc_jets)
         df.to_pickle(osp.join(save_path,'df.pkl'))
