@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import os.path as osp
 import multiprocessing
+from tqdm import tqdm
 from pathlib import Path
 from pyjet import cluster,DTYPE_PTEPM
 from torch_geometric.data import Dataset, Data, Batch
@@ -110,7 +111,7 @@ class GraphDataset(Dataset):
         part_gen = jet_particles(df, R=self.R, u=True, features=self.features)
 
         datas = []
-        for particles, n_particles, jet_mass, jet_px, jet_py, jet_pz, jet_e, signal_bit, row in part_gen:
+        for particles, n_particles, jet_mass, jet_px, jet_py, jet_pz, jet_e, signal_bit, row in tqdm(part_gen, desc=f'Process: {k}', position=k, total=len(df)):
 
             if self.n_particles != -1:   # 0 pad / fix length
                 if self.n_particles < n_particles:
