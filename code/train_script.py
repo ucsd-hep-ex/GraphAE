@@ -92,15 +92,6 @@ def main(args):
     random.Random(0).shuffle(dataset)
     dataset = dataset[:args.num_data]
 
-    # temporary patch
-    tmp = []
-    for d in dataset:
-        d.x = d.x[:,:3] # px py pz
-        if args.loss == 'deepemd_loss' and len(d.x) <= 30:
-            tmp.append(d)
-    if args.loss == 'deepemd_loss':
-        dataset = tmp
-
     fulllen = len(dataset)
     train_len = int(0.8 * fulllen)
     tv_len = int(0.10 * fulllen)
@@ -166,10 +157,6 @@ def main(args):
     for epoch in range(start_epoch, n_epochs):
 
         loss = train(model, optimizer, train_loader, train_samples, args.batch_size, loss_ftn_obj)
-        # if epoch % 5 == 0 and args.loss == 'emd_loss':
-        #     valid_loss, in_parts, gen_parts, pred_emd = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj, True)
-        #     gen_emd_corr(in_parts, gen_parts, pred_emd, save_dir, epoch)
-        # else:
         valid_loss = test(model, valid_loader, valid_samples, args.batch_size, loss_ftn_obj)
 
         scheduler.step(valid_loss)
