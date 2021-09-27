@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: anom-pod
+  name: tony-pod
 spec:
   containers:
   - name: gpu-container

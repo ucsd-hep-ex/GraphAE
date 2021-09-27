@@ -1,7 +1,8 @@
 import sys
 import torch
+import torch.nn.functional as F
+import scipy.optimize
 import numpy as np
-import torch_scatter
 import os.path as osp
 import torch.nn.functional as F
 from torch_geometric.data import Data
@@ -48,6 +49,10 @@ def pairwise_distance(x, y, device=None):
     dist = torch.norm(x1 - y1 + eps, dim=-1)
 
     return dist
+
+def hungarian_lps(sample_np):
+    """ Loss per sample """
+    return scipy.optimize.linear_sum_assignment(sample_np)
 
 class LossFunction:
     def __init__(self, lossname, emd_model_name='EmdNNSpl', iqr_prop=None, device=torch.device('cuda:0')):
@@ -129,4 +134,41 @@ class LossFunction:
 
     def emd_in_forward(self):
         pass
+
+    def hungarian_loss(self, x, y, batch):
+        x = to_dense_batch(x, batch)[0]
+        y = to_dense_batch(y, batch)[0]
+        
+        # https://github.com/zichunhao/mnist_graph_autoencoder/blob/master/utils/loss.py
+        dist = pairwise_distance(x, y, self.device)
+        
+        dist_np = dist.detach().cpu().numpy()
+        indices = map(hungarian_lps, dist_np)
+        
+        losses = [
+            sample[row_ind, col_ind].mean()
+            for sample, (row_ind, col_ind) in zip(dist, indices)         
+        ]
+        
+        total_loss = torch.mean(torch.stack(list(losses)))
+        return total_loss
+
+    def hungarian_loss(self, x, y):
+        """heavily based on the the function found in
+            https://github.com/Cyanogenoid/dspn/blob/be3703b470ead46d76b70b4fed656c2e5343aff6/dspn/utils.py#L6-L23"""
+        # x and y shape :: (n, c, s)
+        x, y = outer(x, y)
+        # squared_error shape :: (n, s, s)
+        squared_error = F.smooth_l1_loss(x, y.expand_as(x), reduction="none").mean(1)
+
+        squared_error_np = squared_error.detach().cpu().numpy()
+        indices = map(hungarian_loss_per_sample, squared_error_np)
+        losses = [
+            sample[row_idx, col_idx].mean()
+            for sample, (row_idx, col_idx) in zip(squared_error, indices)
+        ]
+        total_loss = torch.mean(torch.stack(list(losses)))
+        return total_loss
+
+
 
