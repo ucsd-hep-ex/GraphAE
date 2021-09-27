@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: anomaly-graph-job-bb0
+  name: graph-gen-job-subset
   labels:
     jobgroup: anomaly-graph-job
 spec:
@@ -14,15 +14,19 @@ spec:
         command:
         - "python"
         args:
-        - "/opt/repo/AnomalyDetection4Jets/code/graph_data.py"
+        - "/opt/repo/GraphAE/code/gen_gae_dataset.py"
         - --dataset
-        - "/anomalyvol/data/bb_train_sets/bb0"
+        - "/anomalyvol/data/datatest/"
         - --n-proc
         - "10"
+        - --n-events
+        - "1000"
         - --bb
         - "0"
         - --n-events-merge
-        - "10000"
+        - "100"
+        - --features
+        - "xyz"
         volumeMounts:
         - mountPath: /anomalyvol
           name: anomalyvol-2
@@ -30,11 +34,11 @@ spec:
           mountPath: /opt/repo
         resources:
           limits:
-            memory: 64Gi
+            memory: 128Gi
             cpu: "10"
             #nvidia.com/gpu: "1"
           requests:
-            memory: 32Gi
+            memory: 64Gi
             cpu: "10"
             #nvidia.com/gpu: "1"    
       initContainers:
@@ -43,10 +47,10 @@ spec:
         args:
           - clone
           - --single-branch
-          - https://github.com/stsan9/AnomalyDetection4Jets
+          - https://github.com/AnthonyAportela/GraphAE
           - -b
-          - master
-          - /opt/repo/AnomalyDetection4Jets
+          - main
+          - /opt/repo/GraphAE
         volumeMounts:
           - name: git-repo
             mountPath: /opt/repo

@@ -24,7 +24,7 @@ def forward_loss(model, data, loss_ftn_obj, device, multi_gpu):
     if not multi_gpu:
         data = data.to(device)
 
-    if 'emd_loss' in loss_ftn_obj.name or loss_ftn_obj.name == 'chamfer_loss':
+    if 'emd_loss' in loss_ftn_obj.name or loss_ftn_obj.name == 'chamfer_loss' or loss_ftn_obj.name == 'hungarian_loss':
         batch_output = model(data)
         if multi_gpu:
             data = Batch.from_data_list(data).to(device)

@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: gae-emd-spl
+  name: hungarian-job
   labels:
     jobgroup: gae-train-job
 spec:
@@ -13,23 +13,21 @@ spec:
         command:
         - "python"
         args:
-        - "/opt/repo/AnomalyDetection4Jets/code/train_script.py"
+        - "/opt/repo/GraphAE/code/train_script.py"
         - --mod-name
-        - "EdgeNetEMD_emd_spl_nn"
+        - "hungarian_job"
         - --input-dir
-        - "/anomalyvol/data/bb_train_sets/bb0_xyz"
+        - "/anomalyvol/data/datatest/"
         - --box-num
         - "0"
         - --model
-        - "EdgeNetEMD"
+        - "EdgeNet"
         - --batch-size
-        - "1028"
+        - "16"
         - --lr
-        - "1e-3"
+        - ".001"
         - --loss
-        - "emd_loss"
-        - --emd-model-name
-        - "EmdNNSpl.best.pth"
+        - "hungarian_loss"
         volumeMounts:
         - mountPath: /anomalyvol
           name: anomalyvol-2
@@ -39,21 +37,21 @@ spec:
           limits:
             memory: 256Gi
             cpu: "1"
-            nvidia.com/gpu: "4"
+            nvidia.com/gpu: "1"
           requests:
             memory: 128Gi
             cpu: "1"
-            nvidia.com/gpu: "4"    
+            nvidia.com/gpu: "1"    
       initContainers:
       - name: init-clone-repo
         image: alpine/git
         args:
           - clone
           - --single-branch
-          - https://github.com/stsan9/AnomalyDetection4Jets
+          - https://github.com/AnthonyAportela/GraphAE
           - -b
-          - master
-          - /opt/repo/AnomalyDetection4Jets
+          - main
+          - /opt/repo/GraphAE
         volumeMounts:
           - name: git-repo
             mountPath: /opt/repo
@@ -73,6 +71,4 @@ spec:
                   operator: In
                   values:
                   - 1080Ti
-                  - "1080"
-                  - 2080Ti
   backoffLimit: 5
