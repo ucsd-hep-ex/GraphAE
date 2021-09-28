@@ -243,6 +243,11 @@ def process(data_loader, model_path, model, loss_ftn_obj, latent_dim, features):
                 if loss_ftn_obj.name == 'vae_loss':
                     losses[ib] = loss_ftn_obj.loss_ftn(jets_rec[batch==ib], jets_x[batch==ib], mu, log_var)
                 elif loss_ftn_obj.name == 'emd_loss' or loss_ftn_obj.name == 'chamfer_loss' or loss_ftn_obj.name == 'hungarian_loss':
+                    print(jets_rec[batch==ib])
+                    print()
+                    print(jets_x[batch==ib])
+                    print()
+                    print(torch.tensor(0).repeat(jets_rec[batch==ib].shape[0]))
                     losses[ib] = loss_ftn_obj.loss_ftn(jets_rec[batch==ib], jets_x[batch==ib], torch.tensor(0).repeat(jets_rec[batch==ib].shape[0]))
                 else:
                     losses[ib] = loss_ftn_obj.loss_ftn(jets_rec[batch==ib], jets_x[batch==ib])
