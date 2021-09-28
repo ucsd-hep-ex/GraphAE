@@ -387,7 +387,7 @@ def main(args):
         return df
 
     # read in dataset
-    bb_name = ["bb0", "bb1", "bb2", "bb3", "rnd"][box_num]
+    bb_name = ["bb0_xyz_pyg2", "bb1_xyz_pyg2", "bb2_xyz_pyg2", "bb3_xyz_pyg2", "rnd_xyz_pyg2"][box_num]
     print("Plotting %s"%bb_name)
 
     save_path = osp.join(output_dir,model_fname,'bump_hunt',bb_name)
