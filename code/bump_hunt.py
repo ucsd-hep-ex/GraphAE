@@ -395,8 +395,8 @@ def main(args):
 
     if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
         print("Processing jet losses")
-        gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
-        # gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, n_events=num_events, bb=box_num, features=features)
+#         gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
+        gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, n_events=num_events, bb=box_num, features=features)
         bb_loader = DataListLoader(gdata, batch_size=1, pin_memory=True, shuffle=False)
         bb_loader.collate_fn = collate
         proc_jets, input_fts, reco_fts = process(bb_loader, model_path, model, loss_ftn_obj, latent_dim, features)
