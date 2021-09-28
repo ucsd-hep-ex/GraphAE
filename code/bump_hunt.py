@@ -322,7 +322,7 @@ def bump_hunt(df, cuts, loss_name, bb, save_path):
         bins = np.linspace(0, 1800, 51)
         make_bump_graph(nonoutlier_m2_mass, outlier_m2_mass, x_lab, mj2_graph_name, bins)
 
-    if bb == 'rnd':  # plot roc for rnd set
+    if 'rnd' in bb:  # plot roc for rnd set
         df['loss_sum'] = df['loss1']+df['loss2']
         df['loss_min'] = np.minimum(df['loss1'],df['loss2'])
         df['loss_max'] = np.maximum(df['loss1'],df['loss2'])
