@@ -195,6 +195,7 @@ def process(data_loader, model_path, model, loss_ftn_obj, latent_dim, features):
     """
 
     # load corresponding model
+    print("Loading model")
     if model == 'MetaLayerGAE':
         model = models.GNNAutoEncoder()
     else:
@@ -211,7 +212,9 @@ def process(data_loader, model_path, model, loss_ftn_obj, latent_dim, features):
     jets_proc_data = []
     input_fts = []
     reco_fts = []
-
+    
+    print("Begin processing")
+    
     event = 0
     # for each event in the dataset calculate the loss and inv mass for the leading 2 jets
     with torch.no_grad():
@@ -394,9 +397,10 @@ def main(args):
     Path(save_path).mkdir(parents=True,exist_ok=True) # make a subfolder
 
     if not osp.isfile(osp.join(save_path,'df.pkl')) or overwrite:
-        print("Processing jet losses")
+        print("Processing new jet losses")
 #         gdata = GraphDataset('/anomalyvol/data/lead_2/tiny', n_events=num_events, bb=box_num, features=features)
         gdata = GraphDataset('/anomalyvol/data/lead_2/%s/'%bb_name, n_events=num_events, bb=box_num, features=features)
+        print("Dataset loaded")
         bb_loader = DataListLoader(gdata, batch_size=1, pin_memory=True, shuffle=False)
         bb_loader.collate_fn = collate
         proc_jets, input_fts, reco_fts = process(bb_loader, model_path, model, loss_ftn_obj, latent_dim, features)
