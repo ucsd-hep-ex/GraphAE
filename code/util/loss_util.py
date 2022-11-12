@@ -152,23 +152,3 @@ class LossFunction:
         
         total_loss = torch.mean(torch.stack(list(losses)))
         return total_loss
-
-    def hungarian_loss(self, x, y):
-        """heavily based on the the function found in
-            https://github.com/Cyanogenoid/dspn/blob/be3703b470ead46d76b70b4fed656c2e5343aff6/dspn/utils.py#L6-L23"""
-        # x and y shape :: (n, c, s)
-        x, y = outer(x, y)
-        # squared_error shape :: (n, s, s)
-        squared_error = F.smooth_l1_loss(x, y.expand_as(x), reduction="none").mean(1)
-
-        squared_error_np = squared_error.detach().cpu().numpy()
-        indices = map(hungarian_loss_per_sample, squared_error_np)
-        losses = [
-            sample[row_idx, col_idx].mean()
-            for sample, (row_idx, col_idx) in zip(squared_error, indices)
-        ]
-        total_loss = torch.mean(torch.stack(list(losses)))
-        return total_loss
-
-
-
